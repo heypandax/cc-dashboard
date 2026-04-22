@@ -6,12 +6,9 @@ on:
 
 jobs:
   test:
-    runs-on: macos-14
+    runs-on: macos-26  # match release.yml — Xcode 26 / Swift 6+ diagnostics align with what CD builds
     steps:
       - uses: actions/checkout@v4
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
       - name: Swift version
         run: swift --version
       - name: Run tests
