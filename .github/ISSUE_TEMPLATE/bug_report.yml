@@ -1,0 +1,79 @@
+name: Bug report
+description: Something in cc-dashboard doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. A few reminders:
+
+        - **Security issues**: do **not** file them here — see [SECURITY.md][s].
+        - **Questions / "how do I"**: use [Discussions][d] instead.
+
+        [s]: https://github.com/heypandax/cc-dashboard/blob/main/SECURITY.md
+        [d]: https://github.com/heypandax/cc-dashboard/discussions
+
+  - type: input
+    id: version
+    attributes:
+      label: cc-dashboard version
+      description: Menu bar → "Check for Updates…" shows the version, or check the sidebar footer.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: Run `sw_vers -productVersion` in Terminal.
+      placeholder: "14.5"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps. What did you click / run, in what order?
+      placeholder: |
+        1. Start two `claude` sessions in separate terminals
+        2. In session A, ask Claude to run `ls`
+        3. In session B, ask Claude to edit a file
+        4. Open the menu bar popover → …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: |
+        Filter `Console.app` by subsystem `com.heypanda.cc-dashboard`, or run
+        `log show --predicate 'subsystem == "com.heypanda.cc-dashboard"' --last 10m --info`
+        in Terminal. Paste only the surrounding entries — not the full log.
+      render: shell
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and this isn't a duplicate.
+          required: true
+        - label: I am not reporting a security vulnerability here.
+          required: true

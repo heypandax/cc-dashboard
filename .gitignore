@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+*.xcodeproj
+dist/
+*.app
+ANNOUNCE.md
+.DS_Store
+.claude/
+GoogleService-Info.plist

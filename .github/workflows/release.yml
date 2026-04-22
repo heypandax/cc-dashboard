@@ -1,0 +1,179 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.1.1). Must be semver."
+        required: true
+        type: string
+
+# push main + tag 都要 write
+permissions:
+  contents: write
+
+# 防重:同一版本并发跑会互相踩 commit
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26  # Xcode 26 / macOS 26 SDK — native Liquid Glass .icon bundle support via actool; Swift 6+ tools
+    timeout-minutes: 30
+    steps:
+      - name: Validate version
+        run: |
+          if ! [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version '${{ inputs.version }}' is not semver" ; exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0  # for git describe + prior-tag log range
+          persist-credentials: true
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Ensure tag doesn't already exist
+        run: |
+          if git tag -l "v${{ inputs.version }}" | grep -q .; then
+            echo "::error::tag v${{ inputs.version }} already exists" ; exit 1
+          fi
+
+      - name: Import Developer ID certificate to temp keychain
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 1800 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | xargs)
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          rm "$CERT_PATH"
+          echo "Installed codesign identities:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Decode Apple API Key + Sparkle private key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          echo "$APPLE_API_KEY_P8"    | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          echo "$SPARKLE_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/sparkle_key"
+          chmod 600 "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sparkle_key"
+
+      - name: Bump Info.plist
+        id: bump
+        run: |
+          VERSION="${{ inputs.version }}"
+          OLD_BUILD=$(plutil -extract CFBundleVersion raw Info.plist)
+          if ! [[ "$OLD_BUILD" =~ ^[0-9]+$ ]]; then
+            echo "::error::CFBundleVersion '$OLD_BUILD' is not an integer" ; exit 1
+          fi
+          NEW_BUILD=$((OLD_BUILD + 1))
+          plutil -replace CFBundleShortVersionString -string "$VERSION" Info.plist
+          plutil -replace CFBundleVersion -string "$NEW_BUILD" Info.plist
+          git add Info.plist
+          git commit -m "Bump version to $VERSION"
+          echo "new_build=$NEW_BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Build + sign + notarize + staple
+        env:
+          CC_NOTARIZE: "1"
+          APPLE_API_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: ./make-bundle.sh
+
+      - name: Smoke test signed app
+        run: |
+          codesign --verify --strict --deep dist/cc-dashboard.app
+          SMOKE_OUT=$(timeout 3 dist/cc-dashboard.app/Contents/MacOS/CCDashboard 2>&1 || true)
+          if echo "$SMOKE_OUT" | grep -q "Library not loaded"; then
+            echo "$SMOKE_OUT" >&2
+            echo "::error::dyld failed — framework embed / sign broken" ; exit 1
+          fi
+          spctl -a -vvv --type install dist/cc-dashboard.dmg 2>&1 | grep -q "accepted"
+
+      - name: Update appcast + cask
+        env:
+          SPARKLE_KEY_FILE: ${{ runner.temp }}/sparkle_key
+        run: |
+          VERSION="${{ inputs.version }}"
+          ./scripts/update_appcast.sh --in-place dist/cc-dashboard.dmg
+          DMG_SHA=$(shasum -a 256 dist/cc-dashboard.dmg | awk '{print $1}')
+          sed -i '' -E "s|version \"[^\"]+\"|version \"$VERSION\"|" homebrew-cask/Casks/cc-dashboard.rb
+          sed -i '' -E "s|sha256 \"[^\"]+\"|sha256 \"$DMG_SHA\"|"   homebrew-cask/Casks/cc-dashboard.rb
+          git add docs/appcast.xml homebrew-cask/Casks/cc-dashboard.rb
+          git commit -m "v$VERSION: appcast + cask"
+          git tag "v$VERSION"
+          echo "DMG_SHA=$DMG_SHA" >> "$GITHUB_ENV"
+
+      - name: Push main + tag
+        run: |
+          git push origin main
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create GitHub Release with DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ inputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "v$VERSION^" 2>/dev/null || echo "")
+          if [[ -n "$PREV_TAG" ]]; then
+            NOTES=$(git log "$PREV_TAG..v$VERSION" --pretty='- %s' | grep -vE '^- (Bump|v[0-9]+\.[0-9]+\.[0-9]+:)' || true)
+          else
+            NOTES=$(git log "v$VERSION" --pretty='- %s' -20 | grep -vE '^- (Bump|v[0-9]+\.[0-9]+\.[0-9]+:)' | head -15 || true)
+          fi
+          [[ -z "$NOTES" ]] && NOTES="Release v$VERSION"
+          gh release create "v$VERSION" dist/cc-dashboard.dmg \
+            --title "v$VERSION" \
+            --notes "$NOTES"
+
+      - name: Sync Homebrew tap repo
+        env:
+          TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
+        run: |
+          VERSION="${{ inputs.version }}"
+          TAP_DIR="$RUNNER_TEMP/homebrew-cc-dashboard"
+          git clone "https://x-access-token:${TAP_REPO_TOKEN}@github.com/heypandax/homebrew-cc-dashboard.git" "$TAP_DIR"
+          mkdir -p "$TAP_DIR/Casks"
+          cp homebrew-cask/Casks/cc-dashboard.rb "$TAP_DIR/Casks/"
+          git -C "$TAP_DIR" config user.name  "github-actions[bot]"
+          git -C "$TAP_DIR" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$TAP_DIR" add -A
+          if git -C "$TAP_DIR" diff --cached --quiet; then
+            echo "tap already up to date"
+          else
+            git -C "$TAP_DIR" commit -m "cc-dashboard v$VERSION"
+            git -C "$TAP_DIR" push origin main
+          fi
+
+      - name: Cleanup secrets
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sparkle_key" || true
+          security delete-keychain "$RUNNER_TEMP/build.keychain" 2>/dev/null || true
+
+      - name: Summary
+        run: |
+          echo "### Released v${{ inputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- DMG sha256: \`${DMG_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release: https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Install:" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "brew upgrade --cask cc-dashboard" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"

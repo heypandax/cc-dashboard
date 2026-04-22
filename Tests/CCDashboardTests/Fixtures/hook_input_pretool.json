@@ -1,0 +1,11 @@
+{
+  "session_id": "test-session-123",
+  "cwd": "/Users/test/project",
+  "hook_event_name": "PreToolUse",
+  "transcript_path": "/tmp/transcript.jsonl",
+  "permission_mode": "default",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls -la"
+  }
+}

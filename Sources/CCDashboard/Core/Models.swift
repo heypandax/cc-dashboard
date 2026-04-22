@@ -1,0 +1,184 @@
+import Foundation
+
+// MARK: - Session
+
+enum SessionStatus: String, Codable, Sendable {
+    case running
+    case waitingApproval = "waiting_approval"
+    case idle
+    case done
+    case error
+}
+
+struct SessionState: Codable, Sendable, Identifiable {
+    let id: String            // session_id from hook
+    var cwd: String
+    var status: SessionStatus
+    var startedAt: Date
+    var lastActivityAt: Date
+    var transcriptPath: String?
+    var lastTool: String?
+    var lastNotification: String?
+    var autoAllowUntil: Date?
+}
+
+// MARK: - Approval
+
+struct ApprovalRequest: Codable, Sendable, Identifiable {
+    let id: String            // server-generated UUID
+    let sessionId: String
+    let toolName: String
+    let toolInput: [String: AnyCodable]
+    let cwd: String
+    let createdAt: Date
+
+    /// 单行摘要:优先 command,其次 file_path,兜底工具名。用于通知 body 和菜单栏卡片副标题。
+    var summaryLine: String {
+        if let cmd = toolInput["command"] { return cmd.display }
+        if let path = toolInput["file_path"] { return path.display }
+        return String(localized: "Tool: \(toolName)")
+    }
+}
+
+enum ApprovalDecision: String, Codable, Sendable {
+    case allow
+    case deny
+    case ask
+}
+
+struct DecisionRequest: Codable, Sendable {
+    let decision: ApprovalDecision
+    let reason: String?
+    let trustMinutes: Int?
+}
+
+struct TrustRequest: Codable, Sendable {
+    let minutes: Int
+}
+
+// MARK: - Hook IO
+
+struct HookInput: Codable, Sendable {
+    let sessionID: String
+    let cwd: String?
+    let hookEventName: String?
+    let transcriptPath: String?
+    let permissionMode: String?
+    let toolName: String?
+    let toolInput: [String: AnyCodable]?
+
+    enum CodingKeys: String, CodingKey {
+        case sessionID = "session_id"
+        case cwd
+        case hookEventName = "hook_event_name"
+        case transcriptPath = "transcript_path"
+        case permissionMode = "permission_mode"
+        case toolName = "tool_name"
+        case toolInput = "tool_input"
+    }
+}
+
+struct HookSpecificOutput: Codable, Sendable {
+    let hookEventName: String
+    let permissionDecision: String
+    let permissionDecisionReason: String?
+}
+
+struct HookOutput: Codable, Sendable {
+    let hookSpecificOutput: HookSpecificOutput
+}
+
+// MARK: - AnyCodable helper for arbitrary tool_input JSON
+
+struct AnyCodable: Codable, Sendable {
+    let value: Sendable
+
+    init(_ value: Sendable) { self.value = value }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self.value = NSNull() }
+        else if let b = try? c.decode(Bool.self) { self.value = b }
+        else if let i = try? c.decode(Int.self) { self.value = i }
+        else if let d = try? c.decode(Double.self) { self.value = d }
+        else if let s = try? c.decode(String.self) { self.value = s }
+        else if let a = try? c.decode([AnyCodable].self) { self.value = a }
+        else if let o = try? c.decode([String: AnyCodable].self) { self.value = o }
+        else { self.value = NSNull() }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch value {
+        case let b as Bool: try c.encode(b)
+        case let i as Int: try c.encode(i)
+        case let d as Double: try c.encode(d)
+        case let s as String: try c.encode(s)
+        case let a as [AnyCodable]: try c.encode(a)
+        case let o as [String: AnyCodable]: try c.encode(o)
+        default: try c.encodeNil()
+        }
+    }
+
+    var display: String {
+        switch value {
+        case let s as String: return s
+        case let o as [String: AnyCodable]:
+            if let cmd = o["command"]?.value as? String { return cmd }
+            if let path = o["file_path"]?.value as? String { return path }
+            return String(describing: o.mapValues { $0.display })
+        default: return String(describing: value)
+        }
+    }
+}
+
+// MARK: - WebSocket broadcast events (tagged-union JSON for JS frontend)
+
+enum DashboardEvent: Sendable {
+    case sessionUpsert(SessionState)
+    case sessionRemove(String)
+    case sessionFinished(SessionState)
+    case approvalAdd(ApprovalRequest)
+    case approvalResolve(String)
+    case autoAllowSet(sessionId: String, until: Date)
+    case autoAllowCleared(sessionId: String)
+    case snapshot(sessions: [SessionState], approvals: [ApprovalRequest])
+}
+
+extension DashboardEvent: Encodable {
+    private enum CodingKeys: String, CodingKey {
+        case type, session, sessionId, approval, approvalId, sessions, approvals, until
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .sessionUpsert(let s):
+            try c.encode("session_upsert", forKey: .type)
+            try c.encode(s, forKey: .session)
+        case .sessionRemove(let id):
+            try c.encode("session_remove", forKey: .type)
+            try c.encode(id, forKey: .sessionId)
+        case .sessionFinished(let s):
+            try c.encode("session_finished", forKey: .type)
+            try c.encode(s, forKey: .session)
+        case .approvalAdd(let a):
+            try c.encode("approval_add", forKey: .type)
+            try c.encode(a, forKey: .approval)
+        case .approvalResolve(let id):
+            try c.encode("approval_resolve", forKey: .type)
+            try c.encode(id, forKey: .approvalId)
+        case .autoAllowSet(let sid, let until):
+            try c.encode("auto_allow_set", forKey: .type)
+            try c.encode(sid, forKey: .sessionId)
+            try c.encode(until, forKey: .until)
+        case .autoAllowCleared(let sid):
+            try c.encode("auto_allow_cleared", forKey: .type)
+            try c.encode(sid, forKey: .sessionId)
+        case .snapshot(let sessions, let approvals):
+            try c.encode("snapshot", forKey: .type)
+            try c.encode(sessions, forKey: .sessions)
+            try c.encode(approvals, forKey: .approvals)
+        }
+    }
+}

@@ -1,0 +1,50 @@
+/* Header & chrome */
+"CC Dashboard · %lld pending" = "CC Dashboard · %lld pending";
+"Open Dashboard" = "Open Dashboard";
+"Check for Updates…" = "Check for Updates…";
+"Quit" = "Quit";
+"Pin (keep panel open)" = "Pin (keep panel open)";
+"Unpin (auto-hide on click outside)" = "Unpin (auto-hide on click outside)";
+
+/* Sidebar */
+"Sessions" = "Sessions";
+"No active sessions" = "No active sessions";
+"tool:" = "tool:";
+"auto %@" = "auto %@";
+"Cancel auto-allow" = "Cancel auto-allow";
+"connected" = "connected";
+"error" = "error";
+"%lld active" = "%lld active";
+"%lld pending" = "%lld pending";
+
+/* Approval queue chrome */
+"Approval" = "Approval";
+"Approvals" = "Approvals";
+"No pending approvals" = "No pending approvals";
+"Allow all" = "Allow all";
+"Allow all %lld" = "Allow all %lld";
+"Allow all pending — ⌘↩" = "Allow all pending — ⌘↩";
+
+/* Empty state */
+"Nothing to review." = "Nothing to review.";
+"Sessions will show up here when they need you." = "Sessions will show up here when they need you.";
+"auto-allow active" = "auto-allow active";
+"auto-allow windows active" = "auto-allow windows active";
+
+/* Approval card */
+"Allow" = "Allow";
+"Deny" = "Deny";
+"destructive · review carefully" = "destructive · review carefully";
+"Allow & auto-trust" = "Allow & auto-trust";
+"Allow for" = "Allow for";
+"Allow for %lld min" = "Allow for %lld min";
+"%lld min" = "%lld min";
+"During this window, all %@ tool calls from this session auto-approve." = "During this window, all %@ tool calls from this session auto-approve.";
+"Show less" = "Show less";
+"Show %lld more" = "Show %lld more";
+"just now" = "just now";
+
+/* System notifications (Notifier.swift) */
+"Claude Code · Approval needed" = "Claude Code · Approval needed";
+"Claude Code · Session done" = "Claude Code · Session done";
+"Tool: %@" = "Tool: %@";

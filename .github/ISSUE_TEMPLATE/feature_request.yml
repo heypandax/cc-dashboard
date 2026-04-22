@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest a new feature or enhancement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        cc-dashboard is a hobby project. Features that make it more useful for
+        people running multiple Claude Code sessions are likely to land.
+        Features that expand the scope (chat UI, editor integration, other
+        CLIs) are probably out of scope — ask in [Discussions][d] first.
+
+        [d]: https://github.com/heypandax/cc-dashboard/discussions
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: |
+        Describe the situation where today's cc-dashboard falls short. Lead
+        with the pain, not the proposed solution.
+      placeholder: "When I have five sessions running, I lose track of which one is waiting on me."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would fix the problem? A UI sketch or API shape is welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, or other designs you rejected and why.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and this isn't already proposed.
+          required: true

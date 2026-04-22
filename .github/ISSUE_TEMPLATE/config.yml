@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/heypandax/cc-dashboard/security/advisories/new
+    about: Report privately via GitHub Security Advisories. See SECURITY.md.
+  - name: Question or discussion
+    url: https://github.com/heypandax/cc-dashboard/discussions
+    about: For questions, ideas, or usage help — not actionable bugs.
