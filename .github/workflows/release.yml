@@ -65,14 +65,20 @@ jobs:
           echo "Installed codesign identities:"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-      - name: Decode Apple API Key + Sparkle private key
+      - name: Decode Apple API Key + Sparkle private key + Firebase config
         env:
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
         run: |
           echo "$APPLE_API_KEY_P8"    | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
           echo "$SPARKLE_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/sparkle_key"
           chmod 600 "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sparkle_key"
+          # Firebase config 要在 repo 根,make-bundle.sh 有 if 存在则 cp 进 bundle 的逻辑
+          if [[ -n "$GOOGLE_SERVICE_INFO_PLIST" ]]; then
+              echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > GoogleService-Info.plist
+              chmod 600 GoogleService-Info.plist
+          fi
 
       - name: Bump Info.plist
         id: bump
@@ -164,7 +170,7 @@ jobs:
       - name: Cleanup secrets
         if: always()
         run: |
-          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sparkle_key" || true
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sparkle_key" GoogleService-Info.plist || true
           security delete-keychain "$RUNNER_TEMP/build.keychain" 2>/dev/null || true
 
       - name: Summary
