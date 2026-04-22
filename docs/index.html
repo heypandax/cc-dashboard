@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en" class="dark"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>CC Dashboard — approve every Claude Code tool call in one place</title>
+<meta name="description" content="Native macOS menu bar app to approve or deny tool calls across every Claude Code session you're running. Homebrew install, open source, local-only.">
+<meta name="theme-color" content="#0E0F14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F7F6F2" media="(prefers-color-scheme: light)">
+<meta property="og:title" content="CC Dashboard">
+<meta property="og:description" content="One menu bar app to approve every Claude Code tool call — across every session.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://heypandax.github.io/cc-dashboard/">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: rgba(255,255,255,0.1); }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+body { margin: 0; line-height: inherit; }
+h1,h2,h3,h4,h5,h6,p,figure,blockquote,dl,dd { margin: 0; }
+h1,h2,h3,h4,h5,h6 { font-size: inherit; font-weight: inherit; }
+a { color: inherit; text-decoration: inherit; }
+button, input { background: transparent; padding: 0; font: inherit; cursor: pointer; border: 0; color: inherit; }
+img,svg,video,canvas,audio,iframe,embed,object { display: block; vertical-align: middle; }
+ol,ul { list-style: none; margin: 0; padding: 0; }
+svg { max-width: 100%; height: auto; }
+figure { margin: 0; }
+.bg-ink-900 { background-color:#0E0F14; }
+.text-ink-100 { color:#DEE1EA; }
+.font-sans { font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif; }
+.antialiased { -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale; }
+.sticky { position:sticky; }
+.top-0 { top:0; }
+.z-40 { z-index:40; }
+.mx-auto { margin-left:auto;margin-right:auto; }
+.max-w-6xl { max-width:72rem; }
+.px-5 { padding-left:20px;padding-right:20px; }
+.pt-4 { padding-top:16px; }
+.rounded-2xl { border-radius:16px; }
+.flex { display:flex; }
+.items-center { align-items:center; }
+.gap-3 { gap:12px; }
+.px-3 { padding-left:12px;padding-right:12px; }
+.py-2 { padding-top:8px;padding-bottom:8px; }
+.gap-2 { gap:8px; }
+.pl-1 { padding-left:4px; }
+.pr-2 { padding-right:8px; }
+.text-\[14px\] { font-size:14px; }
+.font-semibold { font-weight:600; }
+.tracking-tight { letter-spacing:-0.025em; }
+.hidden { display:none; }
+.gap-1 { gap:4px; }
+.text-\[13px\] { font-size:13px; }
+.text-ink-300 { color:#9099AE; }
+.py-1\.5 { padding-top:6px;padding-bottom:6px; }
+.rounded-lg { border-radius:8px; }
+.flex-1 { flex:1 1 0%; }
+.inline-flex { display:inline-flex; }
+.gap-1\.5 { gap:6px; }
+.font-medium { font-weight:500; }
+.bg-ink-100 { background-color:#DEE1EA; }
+.text-ink-900 { color:#0E0F14; }
+.relative { position:relative; }
+.overflow-hidden { overflow:hidden; }
+.pt-16 { padding-top:64px; }
+.pb-20 { padding-bottom:80px; }
+.grid { display:grid; }
+.gap-10 { gap:40px; }
+.px-2\.5 { padding-left:10px;padding-right:10px; }
+.py-1 { padding-top:4px;padding-bottom:4px; }
+.rounded-full { border-radius:9999px; }
+.text-\[11px\] { font-size:11px; }
+.text-ink-200 { color:#BEC4D2; }
+.h-1\.5 { height:6px; }
+.w-1\.5 { width:6px; }
+.absolute { position:absolute; }
+.h-full { height:100%; }
+.w-full { width:100%; }
+.bg-mint-300 { background-color:#6EE7B7; }
+.opacity-60 { opacity:0.6; }
+.mt-5 { margin-top:20px; }
+.text-\[44px\] { font-size:44px; }
+.leading-\[1\.02\] { line-height:1.02; }
+.tracking-\[-0\.03em\] { letter-spacing:-0.03em; }
+.text-ink-50 { color:#F7F6F2; }
+.bg-gradient-to-b { background-image:linear-gradient(to bottom, var(--tw-from), var(--tw-to)); }
+.from-indigo-400 { --tw-from:#9B99EE; }
+.to-indigo-600 { --tw-to:#5653D9; }
+.bg-clip-text { -webkit-background-clip:text;background-clip:text; }
+.text-transparent { color:transparent; }
+.text-\[17px\] { font-size:17px; }
+.leading-relaxed { line-height:1.625; }
+.max-w-\[560px\] { max-width:560px; }
+.not-italic { font-style:normal; }
+.font-mono { font-family:"SF Mono","JetBrains Mono",Menlo,ui-monospace,monospace; }
+.bg-ink-800 { background-color:#14161D; }
+.px-1\.5 { padding-left:6px;padding-right:6px; }
+.py-0\.5 { padding-top:2px;padding-bottom:2px; }
+.rounded { border-radius:4px; }
+.mt-7 { margin-top:28px; }
+.rounded-xl { border-radius:12px; }
+.p-1\.5 { padding:6px; }
+.max-w-\[580px\] { max-width:580px; }
+.pl-3 { padding-left:12px; }
+.pr-1 { padding-right:4px; }
+.min-w-0 { min-width:0; }
+.text-ink-400 { color:#6A7084; }
+.select-none { user-select:none; }
+.text-\[13\.5px\] { font-size:13.5px; }
+.whitespace-nowrap { white-space:nowrap; }
+.overflow-x-auto { overflow-x:auto; }
+.shrink-0 { flex-shrink:0; }
+.mt-4 { margin-top:16px; }
+.flex-wrap { flex-wrap:wrap; }
+.px-4 { padding-left:16px;padding-right:16px; }
+.border { border-width:1px;border-style:solid;border-color:rgba(255,255,255,0.1); }
+.border-white\/10 { border-color:rgba(255, 255, 255, 0.1); }
+.text-\[12\.5px\] { font-size:12.5px; }
+.p-2 { padding:8px; }
+.pt-2 { padding-top:8px; }
+.pb-3 { padding-bottom:12px; }
+.w-3 { width:12px; }
+.h-3 { height:12px; }
+.bg-\[\#ED6A5E\] { background-color:#ED6A5E; }
+.bg-\[\#F4BE4F\] { background-color:#F4BE4F; }
+.bg-\[\#61C454\] { background-color:#61C454; }
+.ml-3 { margin-left:12px; }
+.aspect-\[4\/3\] { aspect-ratio:4 / 3; }
+.border-white\/5 { border-color:rgba(255, 255, 255, 0.05); }
+.grid-cols-\[180px_1fr\] { grid-template-columns:180px 1fr; }
+.border-r { border-right-width:1px;border-right-style:solid;border-color:rgba(255,255,255,0.1); }
+.bg-ink-900\/60 { background-color:rgba(14, 15, 20, 0.6); }
+.space-y-1 > * + * { margin-top:4px; }
+.text-\[9px\] { font-size:9px; }
+.uppercase { text-transform:uppercase; }
+.tracking-wider { letter-spacing:0.05em; }
+.px-2 { padding-left:8px;padding-right:8px; }
+.pt-1 { padding-top:4px; }
+.pb-1 { padding-bottom:4px; }
+.rounded-md { border-radius:6px; }
+.bg-indigo-500\/10 { background-color:rgba(124, 122, 229, 0.1); }
+.bg-risk-amber { background-color:#F59E0B; }
+.text-\[10px\] { font-size:10px; }
+.truncate { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.text-risk-amber { color:#F59E0B; }
+.mt-0\.5 { margin-top:2px; }
+.bg-indigo-400 { background-color:#9B99EE; }
+.ml-auto { margin-left:auto; }
+.gap-0\.5 { gap:2px; }
+.text-mint-300 { color:#6EE7B7; }
+.bg-mint-500\/10 { background-color:rgba(16, 185, 129, 0.1); }
+.px-1 { padding-left:4px;padding-right:4px; }
+.bg-ink-400 { background-color:#6A7084; }
+.text-ink-500 { color:#3B4150; }
+.flex-col { flex-direction:column; }
+.border-b { border-bottom-width:1px;border-bottom-style:solid;border-color:rgba(255,255,255,0.1); }
+.text-\[12px\] { font-size:12px; }
+.bg-risk-amber\/15 { background-color:rgba(245, 158, 11, 0.15); }
+.border-mint-500\/25 { border-color:rgba(16, 185, 129, 0.25); }
+.p-3 { padding:12px; }
+.space-y-2 > * + * { margin-top:8px; }
+.bg-ink-700\/60 { background-color:rgba(27, 30, 39, 0.6); }
+.border-l-\[2\.5px\] { border-left-width:2.5px;border-left-style:solid; }
+.border-l-risk-amber { border-left-color:#F59E0B; }
+.items-baseline { align-items:baseline; }
+.mt-2 { margin-top:8px; }
+.mt-2\.5 { margin-top:10px; }
+.text-\[11\.5px\] { font-size:11.5px; }
+.text-risk-red { color:#F87171; }
+.bg-risk-red\/10 { background-color:rgba(248, 113, 113, 0.1); }
+.border-risk-red\/25 { border-color:rgba(248, 113, 113, 0.25); }
+.border-l-risk-red { border-left-color:#F87171; }
+.top-3 { top:12px; }
+.right-3 { right:12px; }
+.bg-ink-900\/70 { background-color:rgba(14, 15, 20, 0.7); }
+.border-t { border-top-width:1px;border-top-style:solid;border-color:rgba(255,255,255,0.1); }
+.bg-ink-900\/50 { background-color:rgba(14, 15, 20, 0.5); }
+.py-5 { padding-top:20px;padding-bottom:20px; }
+.grid-cols-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.gap-6 { gap:24px; }
+.py-20 { padding-top:80px;padding-bottom:80px; }
+.max-w-2xl { max-width:42rem; }
+.tracking-\[0\.14em\] { letter-spacing:0.14em; }
+.text-\[34px\] { font-size:34px; }
+.leading-\[1\.08\] { line-height:1.08; }
+.tracking-\[-0\.025em\] { letter-spacing:-0.025em; }
+.mt-3 { margin-top:12px; }
+.text-\[15px\] { font-size:15px; }
+.mt-10 { margin-top:40px; }
+.gap-4 { gap:16px; }
+.p-6 { padding:24px; }
+.w-9 { width:36px; }
+.h-9 { height:36px; }
+.bg-indigo-500\/15 { background-color:rgba(124, 122, 229, 0.15); }
+.border-indigo-500\/30 { border-color:rgba(124, 122, 229, 0.3); }
+.justify-center { justify-content:center; }
+.text-indigo-400 { color:#9B99EE; }
+.mt-1\.5 { margin-top:6px; }
+.bg-mint-500\/15 { background-color:rgba(16, 185, 129, 0.15); }
+.border-mint-500\/30 { border-color:rgba(16, 185, 129, 0.3); }
+.bg-risk-red\/15 { background-color:rgba(248, 113, 113, 0.15); }
+.border-risk-red\/30 { border-color:rgba(248, 113, 113, 0.3); }
+.border-y { border-top-width:1px;border-bottom-width:1px;border-style:solid;border-color:rgba(255,255,255,0.1); }
+.bg-ink-950\/40 { background-color:rgba(10, 11, 16, 0.4); }
+.text-\[30px\] { font-size:30px; }
+.leading-\[1\.1\] { line-height:1.1; }
+.tracking-\[-0\.02em\] { letter-spacing:-0.02em; }
+.grid-cols-1 { grid-template-columns:repeat(1,minmax(0,1fr)); }
+.p-4 { padding:16px; }
+.mt-1 { margin-top:4px; }
+.leading-snug { line-height:1.375; }
+.mt-8 { margin-top:32px; }
+.p-5 { padding:20px; }
+.items-start { align-items:flex-start; }
+.max-w-3xl { max-width:48rem; }
+.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+.p-1 { padding:4px; }
+.cursor-pointer { cursor:pointer; }
+.py-4 { padding-top:16px;padding-bottom:16px; }
+.w-10 { width:40px; }
+.h-10 { height:40px; }
+.list-decimal { list-style-type:decimal;padding-left:1.25rem; }
+.pl-5 { padding-left:20px; }
+.space-y-1\.5 > * + * { margin-top:6px; }
+.inset-x-0 { left:0;right:0; }
+.h-6 { height:24px; }
+.text-white\/80 { color:rgba(255, 255, 255, 0.8); }
+.opacity-70 { opacity:0.7; }
+.gap-2\.5 { gap:10px; }
+.opacity-90 { opacity:0.9; }
+.rounded-\[4px\] { border-radius:4px; }
+.tabular-nums { font-variant-numeric:tabular-nums; }
+.text-\[9\.5px\] { font-size:9.5px; }
+.py-3 { padding-top:12px;padding-bottom:12px; }
+.inset-3 { top:12px;right:12px;bottom:12px;left:12px; }
+.rounded-\[10px\] { border-radius:10px; }
+.h-8 { height:32px; }
+.w-2\.5 { width:10px; }
+.h-2\.5 { height:10px; }
+.text-center { text-align:center; }
+.w-12 { width:48px; }
+.grid-cols-\[38%_1fr\] { grid-template-columns:38% 1fr; }
+.h-\[calc\(100%-32px\)\] { height:calc(100%-32px); }
+.pt-2\.5 { padding-top:10px; }
+.pb-1\.5 { padding-bottom:6px; }
+.space-y-0\.5 > * + * { margin-top:2px; }
+.text-\[8px\] { font-size:8px; }
+.py-px { padding-top:1px;padding-bottom:1px; }
+.p-2\.5 { padding:10px; }
+.text-\[10\.5px\] { font-size:10.5px; }
+.aspect-\[21\/9\] { aspect-ratio:21 / 9; }
+.rounded-\[14px\] { border-radius:14px; }
+.rounded-\[8px\] { border-radius:8px; }
+.inset-0 { top:0;right:0;bottom:0;left:0; }
+.text-white { color:#ffffff; }
+.text-white\/50 { color:rgba(255, 255, 255, 0.5); }
+.text-white\/70 { color:rgba(255, 255, 255, 0.7); }
+.text-white\/90 { color:rgba(255, 255, 255, 0.9); }
+.opacity-85 { opacity:0.85; }
+.h-5 { height:20px; }
+.w-2 { width:8px; }
+.h-2 { height:8px; }
+.ml-2 { margin-left:8px; }
+.text-white\/60 { color:rgba(255, 255, 255, 0.6); }
+.text-white\/75 { color:rgba(255, 255, 255, 0.75); }
+.inline-block { display:inline-block; }
+.max-w-lg { max-width:32rem; }
+.text-left { text-align:left; }
+.w-\[44%\] { width:44%; }
+.divide-y > * + * { border-top-width:1px;border-top-style:solid; }
+.divide-white\/5 > * + * { border-color:rgba(255, 255, 255, 0.05); }
+.w-4 { width:16px; }
+.h-4 { height:16px; }
+.transition-transform { transition-property:transform;transition-duration:150ms;transition-timing-function:cubic-bezier(0.4,0,0.2,1); }
+.underline { text-decoration-line:underline; }
+.underline-offset-2 { text-underline-offset:2px; }
+.bg-ink-950\/60 { background-color:rgba(10, 11, 16, 0.6); }
+.py-10 { padding-top:40px;padding-bottom:40px; }
+.max-w-md { max-width:28rem; }
+.gap-x-6 { column-gap:24px; }
+.gap-y-2 { row-gap:8px; }
+.hover\\:bg-white\\/5\:hover { background-color:rgba(255, 255, 255, 0.05); }
+.hover\\:bg-white\:hover { background-color:#ffffff; }
+.hover\\:border-white\\/20\:hover { border-color:rgba(255, 255, 255, 0.2); }
+.hover\\:text-ink-100\:hover { color:#DEE1EA; }
+.hover\\:text-white\:hover { color:#ffffff; }
+.focus\\:outline-none\:focus { outline:2px solid transparent;outline-offset:2px; }
+.focus-visible\\:ring-2\:focus-visible { box-shadow:0 0 0 2px var(--tw-ring-color, rgba(155,153,238,0.6)); }
+.focus-visible\\:ring-indigo-400\:focus-visible { --tw-ring-color:rgba(155,153,238,0.6); }
+@keyframes __ping { 75%, 100% { transform: scale(2); opacity: 0; }; }
+.animate-ping { animation: __ping 1s cubic-bezier(0,0,0.2,1) infinite; }
+@media (min-width:640px) {
+.sm\:inline { display:inline; }
+.sm\:pt-24 { padding-top:96px; }
+.sm\:pb-28 { padding-bottom:112px; }
+.sm\:text-\[56px\] { font-size:56px; }
+.sm\:grid-cols-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.sm\:py-24 { padding-top:96px;padding-bottom:96px; }
+.sm\:text-\[40px\] { font-size:40px; }
+.sm\:grid-cols-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.sm\:text-\[36px\] { font-size:36px; }
+.sm\:grid-cols-\[1fr_auto\] { grid-template-columns:1fr auto; }
+}
+@media (min-width:768px) {
+.md\:flex { display:flex; }
+.md\:grid-cols-12 { grid-template-columns:repeat(12,minmax(0,1fr)); }
+.md\:gap-12 { gap:48px; }
+.md\:col-span-6 { grid-column:span 6 / span 6; }
+.md\:grid-cols-5 { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.md\:grid-cols-\[1fr_320px\] { grid-template-columns:1fr 320px; }
+.md\:grid-cols-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.md\:col-span-2 { grid-column:span 2 / span 2; }
+.md\:grid-cols-\[1fr_1fr\] { grid-template-columns:1fr 1fr; }
+}
+@media (min-width:1024px) {
+.lg\:grid-cols-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+</style>
+<script>
+  window.tailwind = { config: {} };
+  window.__tailwind_config_noop = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          indigo: { 400: '#9B99EE', 500: '#7C7AE5', 600: '#5653D9', 700: '#4846B8' },
+          mint:   { 300: '#6EE7B7', 500: '#10B981', 600: '#059669' },
+          risk:   { red: '#F87171', amber: '#F59E0B' },
+          ink: {
+            950: '#0A0B10', 900: '#0E0F14', 800: '#14161D', 700: '#1B1E27',
+            600: '#272B37', 500: '#3B4150', 400: '#6A7084', 300: '#9099AE',
+            200: '#BEC4D2', 100: '#DEE1EA', 50:  '#F7F6F2',
+          },
+        },
+        fontFamily: {
+          sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+          mono: ['"SF Mono"', '"JetBrains Mono"', 'Menlo', 'ui-monospace', 'monospace'],
+          display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'sans-serif'],
+        },
+        boxShadow: {
+          card: '0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.25)',
+          glass: '0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 48px rgba(0,0,0,0.35)',
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  html { color-scheme: dark light; }
+  body { font-feature-settings: "cv11","ss01"; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+  /* Liquid glass — radial indigo behind content */
+  .bg-noise {
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124,122,229,0.22) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 10%, rgba(86,83,217,0.15) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 0% 30%, rgba(110,231,183,0.06) 0%, transparent 60%);
+  }
+  .grain::before {
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:.35;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxNjAnIGhlaWdodD0nMTYwJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9JzAuOScgbnVtT2N0YXZlcz0nMicvPjxmZUNvbG9yTWF0cml4IHZhbHVlcz0nMCAwIDAgMCAwLjA4IDAgMCAwIDAgMC4wOCAwIDAgMCAwIDAuMTQgMCAwIDAgMC40IDAnLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyBmaWx0ZXI9J3VybCglMjNuKScvPjwvc3ZnPg==");
+    mix-blend-mode: overlay;
+  }
+  .glass {
+    background: rgba(20,22,29,0.72);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 0.5px solid rgba(255,255,255,0.08);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 48px rgba(0,0,0,0.35);
+  }
+  @media (prefers-color-scheme: light) { html:not(.force-dark) { } }
+  /* We stay dark-first: only swap if html has .light */
+  html.light { color-scheme: light; }
+  html.light body { background: #F7F6F2; color: #14161D; }
+
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+  details[open] .chev { transform: rotate(180deg); }
+
+  /* tab-like radio */
+  .tab-input:checked + label {
+    background: rgba(124,122,229,0.14);
+    color: #DEE1EA;
+    box-shadow: inset 0 0 0 0.5px rgba(124,122,229,0.5);
+  }
+
+  /* code block scroll */
+  pre, code { font-feature-settings: "calt" 0; }
+  .no-scrollbar::-webkit-scrollbar { display:none }
+  .no-scrollbar { scrollbar-width: none }
+
+  a, button { -webkit-tap-highlight-color: transparent; }
+
+  /* reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body class="bg-ink-900 text-ink-100 font-sans antialiased">
+
+<!-- ───────────────── NAV ───────────────── -->
+<header class="sticky top-0 z-40">
+  <div class="mx-auto max-w-6xl px-5 pt-4">
+    <nav class="glass rounded-2xl flex items-center gap-3 px-3 py-2">
+      <a href="#top" class="flex items-center gap-2 pl-1 pr-2" aria-label="CC Dashboard home">
+        <!-- brand mark: menu bar icon style -->
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+          <rect x="3" y="5.5" width="15" height="12" rx="2.2" stroke="currentColor" stroke-width="1.6" class="text-ink-100"></rect>
+          <line x1="6" y1="9" x2="15" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="text-ink-100"></line>
+          <line x1="6" y1="11.5" x2="13.5" y2="11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="text-ink-100"></line>
+          <line x1="6" y1="14" x2="12" y2="14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="text-ink-100"></line>
+          <circle cx="18" cy="5.5" r="2" fill="#F59E0B"></circle>
+        </svg>
+        <span class="text-[14px] font-semibold tracking-tight">CC Dashboard</span>
+      </a>
+      <div class="hidden md:flex items-center gap-1 text-[13px] text-ink-300">
+        <a href="#features" class="px-3 py-1.5 rounded-lg hover:text-ink-100 hover:bg-white/5">Features</a>
+        <a href="#how" class="px-3 py-1.5 rounded-lg hover:text-ink-100 hover:bg-white/5">How it works</a>
+        <a href="#install" class="px-3 py-1.5 rounded-lg hover:text-ink-100 hover:bg-white/5">Install</a>
+        <a href="#shortcuts" class="px-3 py-1.5 rounded-lg hover:text-ink-100 hover:bg-white/5">Shortcuts</a>
+        <a href="#faq" class="px-3 py-1.5 rounded-lg hover:text-ink-100 hover:bg-white/5">FAQ</a>
+      </div>
+      <div class="flex-1"></div>
+      <a href="https://github.com/heypandax/cc-dashboard" class="text-[13px] text-ink-300 hover:text-ink-100 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/5">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a8 8 0 00-2.53 15.59c.4.07.55-.17.55-.38v-1.34c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.65-.89-3.65-3.96 0-.88.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.13 0 0 .67-.22 2.2.82A7.6 7.6 0 018 4.52c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.11.16 1.93.08 2.13.51.56.82 1.27.82 2.15 0 3.08-1.87 3.76-3.66 3.95.29.25.54.74.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 008 0z"></path></svg>
+        <span class="hidden sm:inline">GitHub</span>
+      </a>
+      <a href="#install" class="text-[13px] font-medium px-3 py-1.5 rounded-lg bg-ink-100 text-ink-900 hover:bg-white">
+        Install
+      </a>
+    </nav>
+  </div>
+</header>
+
+<!-- ───────────────── HERO ───────────────── -->
+<section id="top" class="relative overflow-hidden bg-noise grain">
+  <div class="mx-auto max-w-6xl px-5 pt-16 pb-20 sm:pt-24 sm:pb-28 grid md:grid-cols-12 gap-10 md:gap-12 items-center">
+    <div class="md:col-span-6">
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-medium text-ink-200 glass">
+        <span class="relative flex h-1.5 w-1.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-mint-300 opacity-60"></span>
+          <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-mint-300"></span>
+        </span>
+        v0.3.1 — menu bar · Sparkle auto-update
+      </div>
+      <h1 class="mt-5 text-[44px] sm:text-[56px] leading-[1.02] font-semibold tracking-[-0.03em] font-display text-ink-50">
+        Approve every<br>
+        <span class="bg-gradient-to-b from-indigo-400 to-indigo-600 bg-clip-text text-transparent">Claude Code</span> tool call<br>
+        in one place.
+      </h1>
+      <p class="mt-5 text-[17px] leading-relaxed text-ink-300 max-w-[560px]">
+        One menu bar app to approve or deny <em class="not-italic text-ink-100">Bash</em>, <em class="not-italic text-ink-100">Edit</em>, <em class="not-italic text-ink-100">Write</em>, and <em class="not-italic text-ink-100">WebFetch</em> calls across every Claude Code session you're running — instead of hunting the right terminal for <code class="text-[13px] font-mono text-ink-200 bg-ink-800 px-1.5 py-0.5 rounded">y/n</code>.
+      </p>
+
+      <!-- primary CTA: brew copy block -->
+      <div class="mt-7 rounded-xl glass p-1.5 flex items-center gap-2 max-w-[580px]" role="group" aria-label="Install command">
+        <div class="flex items-center gap-2 pl-3 pr-1 py-2 flex-1 min-w-0">
+          <span class="text-ink-400 font-mono text-[13px] select-none">$</span>
+          <code id="brew-cmd" class="font-mono text-[13.5px] text-ink-100 whitespace-nowrap overflow-x-auto no-scrollbar flex-1">brew install --cask heypandax/cc-dashboard/cc-dashboard</code>
+        </div>
+        <button type="button" data-copy="brew-cmd" class="shrink-0 inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-2 rounded-lg bg-ink-100 text-ink-900 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="Copy install command">
+          <svg class="copy-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="9" height="10" rx="1.5"></rect>
+            <path d="M10 4V3a1 1 0 00-1-1H4a1 1 0 00-1 1v8a1 1 0 001 1h1"></path>
+          </svg>
+          <svg class="check-icon hidden" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 8.5l3.5 3L13 4.5"></path>
+          </svg>
+          <span class="copy-label">Copy</span>
+        </button>
+      </div>
+
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <a href="https://github.com/heypandax/cc-dashboard/releases/latest" class="inline-flex items-center gap-2 text-[13.5px] text-ink-200 hover:text-ink-100 px-4 py-2 rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2v9M4.5 7.5L8 11l3.5-3.5M3 13.5h10"></path>
+          </svg>
+          Download DMG
+        </a>
+        <span class="text-[12.5px] text-ink-400">
+          macOS 14+ · Developer ID signed + Apple notarized · Open source
+        </span>
+      </div>
+    </div>
+
+    <!-- Hero preview: window mock -->
+    <div class="md:col-span-6 relative">
+      <!-- docs/assets/hero.png placeholder frame with label -->
+      <div class="relative rounded-2xl overflow-hidden glass p-2 shadow-glass" aria-label="Main window preview placeholder">
+        <!-- traffic lights -->
+        <div class="flex items-center gap-1.5 px-3 pt-2 pb-3">
+          <span class="w-3 h-3 rounded-full bg-[#ED6A5E]"></span>
+          <span class="w-3 h-3 rounded-full bg-[#F4BE4F]"></span>
+          <span class="w-3 h-3 rounded-full bg-[#61C454]"></span>
+          <span class="ml-3 text-[11px] font-mono text-ink-400">cc-dashboard</span>
+        </div>
+        <div class="aspect-[4/3] rounded-xl border border-white/5 bg-ink-800 grid grid-cols-[180px_1fr] overflow-hidden">
+          <!-- fake sidebar -->
+          <div class="border-r border-white/5 bg-ink-900/60 p-2 space-y-1">
+            <div class="text-[9px] uppercase tracking-wider text-ink-400 px-2 pt-1 pb-1">Sessions · 5</div>
+            <!-- rows -->
+            <div class="px-2 py-1.5 rounded-md bg-indigo-500/10">
+              <div class="flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-risk-amber"></span>
+                <span class="font-mono text-[11px] text-ink-100">a7f3c201</span>
+              </div>
+              <div class="font-mono text-[10px] text-ink-400 truncate">…/apollo-server/api</div>
+              <div class="text-[10px] text-risk-amber font-mono mt-0.5">2 pending</div>
+            </div>
+            <div class="px-2 py-1.5 rounded-md">
+              <div class="flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                <span class="font-mono text-[11px] text-ink-200">e18b2f30</span>
+                <span class="ml-auto inline-flex items-center gap-0.5 text-[9px] font-mono text-mint-300 bg-mint-500/10 px-1 rounded">auto 9:42</span>
+              </div>
+              <div class="font-mono text-[10px] text-ink-400 truncate">…/ml-pipeline</div>
+            </div>
+            <div class="px-2 py-1.5 rounded-md">
+              <div class="flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                <span class="font-mono text-[11px] text-ink-200">c4d8710a</span>
+              </div>
+              <div class="font-mono text-[10px] text-ink-400 truncate">…/design-system/tokens</div>
+            </div>
+            <div class="px-2 py-1.5 rounded-md">
+              <div class="flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-ink-400"></span>
+                <span class="font-mono text-[11px] text-ink-300">f502c9a7</span>
+              </div>
+              <div class="font-mono text-[10px] text-ink-500 truncate">…/blog</div>
+            </div>
+          </div>
+
+          <!-- detail -->
+          <div class="flex flex-col">
+            <div class="flex items-center gap-2 px-4 py-2 border-b border-white/5">
+              <span class="text-[12px] font-semibold text-ink-100">Approvals</span>
+              <span class="text-[10px] font-mono text-risk-amber bg-risk-amber/15 px-1.5 py-0.5 rounded-full">2 pending</span>
+              <span class="flex-1"></span>
+              <span class="inline-flex items-center gap-1 text-[11px] text-mint-300 bg-mint-500/10 border border-mint-500/25 px-2 py-1 rounded-md">
+                <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7l3 3 6-6.5"></path></svg>
+                Allow all 2
+              </span>
+            </div>
+            <div class="p-3 space-y-2">
+              <!-- card -->
+              <div class="rounded-lg bg-ink-700/60 border border-white/5 border-l-[2.5px] border-l-risk-amber p-3">
+                <div class="flex items-baseline gap-2">
+                  <span class="text-[13px] font-semibold">Bash</span>
+                  <span class="font-mono text-[11px] text-ink-400">a7f3c201</span>
+                  <span class="ml-auto text-[10px] text-ink-400 font-mono">12s</span>
+                </div>
+                <div class="mt-2 bg-ink-800 border border-white/5 rounded-md p-2 font-mono text-[11px] text-ink-100 leading-relaxed">
+                  <div><span class="text-ink-400">command:</span> npm install @apollo/server graphql-tag --save</div>
+                  <div><span class="text-ink-400">desc:</span> Install GraphQL dependencies</div>
+                </div>
+                <div class="mt-2.5 flex items-center gap-2">
+                  <span class="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-md" style="background:linear-gradient(180deg,#6EE7B7,#10B981);color:#06381B;">
+                    <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7l3 3 6-6.5"></path></svg>
+                    Allow
+                  </span>
+                  <span class="text-[11.5px] text-risk-red bg-risk-red/10 border border-risk-red/25 px-2.5 py-1 rounded-md">Deny</span>
+                </div>
+              </div>
+              <!-- card 2 compact -->
+              <div class="rounded-lg bg-ink-700/60 border border-white/5 border-l-[2.5px] border-l-risk-red p-3">
+                <div class="flex items-baseline gap-2">
+                  <span class="text-[13px] font-semibold">Bash</span>
+                  <span class="font-mono text-[11px] text-ink-400">e18b2f30</span>
+                  <span class="ml-auto inline-flex items-center gap-1 text-[10px] text-risk-red font-medium">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 1.5L11 10H1z"></path></svg>
+                    destructive
+                  </span>
+                </div>
+                <div class="mt-2 bg-ink-800 border border-white/5 rounded-md p-2 font-mono text-[11px] text-ink-100">
+                  <div><span class="text-ink-400">command:</span> rm -rf ./dist ./coverage ./.tsbuildinfo</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="absolute top-3 right-3 text-[10px] font-mono text-ink-400 bg-ink-900/70 border border-white/10 px-1.5 py-0.5 rounded">
+          docs/assets/hero.png
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat bar -->
+  <div class="border-t border-white/5 bg-ink-900/50">
+    <div class="mx-auto max-w-6xl px-5 py-5 grid grid-cols-2 sm:grid-cols-4 gap-6 text-[12.5px]">
+      <div>
+        <div class="text-ink-400">Memory</div>
+        <div class="text-ink-100 font-mono">≈ 38 MB idle</div>
+      </div>
+      <div>
+        <div class="text-ink-400">Cold start</div>
+        <div class="text-ink-100 font-mono">&lt; 200 ms</div>
+      </div>
+      <div>
+        <div class="text-ink-400">Binary</div>
+        <div class="text-ink-100 font-mono">universal · arm64+x86_64</div>
+      </div>
+      <div>
+        <div class="text-ink-400">License</div>
+        <div class="text-ink-100 font-mono">MIT · open source</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────── FEATURES ───────────────── -->
+<section id="features" class="relative">
+  <div class="mx-auto max-w-6xl px-5 py-20 sm:py-24">
+    <div class="max-w-2xl">
+      <div class="text-[12px] font-mono uppercase tracking-[0.14em] text-ink-400">Features</div>
+      <h2 class="mt-2 text-[34px] sm:text-[40px] leading-[1.08] font-semibold tracking-[-0.025em] font-display text-ink-50">
+        Built for the shape of the problem, not a generic dashboard.
+      </h2>
+      <p class="mt-3 text-ink-300 text-[15px] leading-relaxed">
+        Every session's <code class="font-mono text-[13px] bg-ink-800 text-ink-200 px-1.5 py-0.5 rounded">PreToolUse</code> hook pipes here. You approve from one place, with risk already classified.
+      </p>
+    </div>
+
+    <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <!-- 1 -->
+      <div class="glass rounded-2xl p-6">
+        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2.5"></rect><path d="M7 10h10M7 13.5h8M7 17h6"></path><circle cx="21" cy="5" r="2" fill="currentColor" stroke="none"></circle></svg>
+        </div>
+        <h3 class="mt-4 text-[15px] font-semibold text-ink-50">Pending at a glance</h3>
+        <p class="mt-1.5 text-[13.5px] text-ink-300 leading-relaxed">
+          Menu bar icon has three states: idle, waiting, auto-allow active. State is carried by shape, not color — macOS template compliant.
+        </p>
+      </div>
+
+      <!-- 2 -->
+      <div class="glass rounded-2xl p-6">
+        <div class="w-9 h-9 rounded-lg bg-mint-500/15 border border-mint-500/30 flex items-center justify-center text-mint-300">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+        </div>
+        <h3 class="mt-4 text-[15px] font-semibold text-ink-50">Batch or granular</h3>
+        <p class="mt-1.5 text-[13.5px] text-ink-300 leading-relaxed">
+          Allow / Deny individually, Allow-for 2 / 10 / 30 min for temporary trust windows, or <span class="font-mono text-[12.5px] text-ink-100">⌘↩</span> to clear the queue.
+        </p>
+      </div>
+
+      <!-- 3 -->
+      <div class="glass rounded-2xl p-6">
+        <div class="w-9 h-9 rounded-lg bg-risk-red/15 border border-risk-red/30 flex items-center justify-center text-risk-red">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 17H2z"></path><path d="M12 10v4M12 16.5v0.3"></path></svg>
+        </div>
+        <h3 class="mt-4 text-[15px] font-semibold text-ink-50">Risk hints built in</h3>
+        <p class="mt-1.5 text-[13.5px] text-ink-300 leading-relaxed">
+          <span class="font-mono text-[12.5px] text-risk-red">rm -rf</span>, <span class="font-mono text-[12.5px] text-risk-red">sudo</span>, <span class="font-mono text-[12.5px] text-risk-red">curl | sh</span>, writes to <span class="font-mono text-[12.5px] text-risk-red">/etc /usr /System</span> flagged red; any Edit / Write / WebFetch gets an amber edge.
+        </p>
+      </div>
+
+      <!-- 4 -->
+      <div class="glass rounded-2xl p-6">
+        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L15 4 15 9 19 9 12 17 5 9 9 9z"></path><path d="M4 20h16"></path></svg>
+        </div>
+        <h3 class="mt-4 text-[15px] font-semibold text-ink-50">Pin to stay open</h3>
+        <p class="mt-1.5 text-[13.5px] text-ink-300 leading-relaxed">
+          Popover auto-closes on outside click by default. Pin it and it survives app switches, Space changes, and full-screen toggles — review while you keep working.
+        </p>
+      </div>
+
+      <!-- 5 -->
+      <div class="glass rounded-2xl p-6">
+        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 4v16M3 9h4M3 15h4"></path></svg>
+        </div>
+        <h3 class="mt-4 text-[15px] font-semibold text-ink-50">Native &amp; local-only</h3>
+        <p class="mt-1.5 text-[13.5px] text-ink-300 leading-relaxed">
+          Embedded HTTP + WebSocket server on <span class="font-mono text-[12.5px] text-ink-100">127.0.0.1:7788</span>. No Python, no Node. Speaks Claude Code's official <span class="font-mono text-[12.5px] text-ink-100">PreToolUse</span> hook.
+        </p>
+      </div>
+
+      <!-- 6 -->
+      <div class="glass rounded-2xl p-6">
+        <div class="w-9 h-9 rounded-lg bg-mint-500/15 border border-mint-500/30 flex items-center justify-center text-mint-300">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11M7.5 9.5L12 14l4.5-4.5"></path><path d="M4 18v2h16v-2"></path></svg>
+        </div>
+        <h3 class="mt-4 text-[15px] font-semibold text-ink-50">Sparkle auto-update</h3>
+        <p class="mt-1.5 text-[13.5px] text-ink-300 leading-relaxed">
+          EdDSA-signed incremental updates via Sparkle. Silent background checks; you approve the install.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────── HOW IT WORKS ───────────────── -->
+<section id="how" class="relative border-y border-white/5 bg-ink-950/40">
+  <div class="mx-auto max-w-6xl px-5 py-20 sm:py-24">
+    <div class="max-w-2xl">
+      <div class="text-[12px] font-mono uppercase tracking-[0.14em] text-ink-400">How it works</div>
+      <h2 class="mt-2 text-[30px] sm:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em] font-display text-ink-50">
+        Five hops, all local, never blocking.
+      </h2>
+    </div>
+
+    <!-- flow -->
+    <ol class="mt-10 grid grid-cols-1 md:grid-cols-5 gap-3">
+      <!-- step -->
+      <li class="relative glass rounded-xl p-4">
+        <div class="text-[11px] font-mono text-ink-400">01</div>
+        <div class="mt-1 text-[14px] font-semibold text-ink-50">Claude Code CLI</div>
+        <div class="mt-1 text-[12.5px] text-ink-300 leading-snug">Your session is about to run a tool.</div>
+      </li>
+      <li class="relative glass rounded-xl p-4">
+        <div class="text-[11px] font-mono text-ink-400">02</div>
+        <div class="mt-1 text-[14px] font-semibold text-ink-50">PreToolUse hook</div>
+        <div class="mt-1 text-[12.5px] text-ink-300 leading-snug">Official Claude Code hook fires with tool name + input.</div>
+      </li>
+      <li class="relative glass rounded-xl p-4">
+        <div class="text-[11px] font-mono text-ink-400">03</div>
+        <div class="mt-1 text-[14px] font-semibold text-ink-50">127.0.0.1:7788</div>
+        <div class="mt-1 text-[12.5px] text-ink-300 leading-snug">Local HTTP/WS server receives the request. Nothing leaves your machine.</div>
+      </li>
+      <li class="relative glass rounded-xl p-4">
+        <div class="text-[11px] font-mono text-ink-400">04</div>
+        <div class="mt-1 text-[14px] font-semibold text-ink-50">Popover</div>
+        <div class="mt-1 text-[12.5px] text-ink-300 leading-snug">Menu bar shows the approval card. You click Allow / Deny / Allow for 10 min.</div>
+      </li>
+      <li class="relative glass rounded-xl p-4">
+        <div class="text-[11px] font-mono text-ink-400">05</div>
+        <div class="mt-1 text-[14px] font-semibold text-ink-50">CLI continues</div>
+        <div class="mt-1 text-[12.5px] text-ink-300 leading-snug">Decision returns; the tool runs or is blocked.</div>
+      </li>
+    </ol>
+
+    <!-- fallback callout -->
+    <div class="mt-8 glass rounded-xl p-5 flex items-start gap-4">
+      <div class="w-9 h-9 rounded-lg bg-mint-500/15 border border-mint-500/30 flex items-center justify-center text-mint-300 shrink-0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a8 8 0 0114 5"></path><path d="M18 6v4h-4"></path><path d="M20 17a8 8 0 01-14-5"></path><path d="M6 18v-4h4"></path></svg>
+      </div>
+      <div>
+        <div class="text-[14px] font-semibold text-ink-50">Never blocks the CLI</div>
+        <p class="mt-1 text-[13.5px] text-ink-300 leading-relaxed max-w-3xl">
+          If the app isn't running — or the health check times out after 2s — the hook silently falls back to Claude Code's native TUI prompt. Quit the app mid-session and your terminal still works.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────── INSTALL ───────────────── -->
+<section id="install" class="relative">
+  <div class="mx-auto max-w-6xl px-5 py-20 sm:py-24">
+    <div class="max-w-2xl">
+      <div class="text-[12px] font-mono uppercase tracking-[0.14em] text-ink-400">Install</div>
+      <h2 class="mt-2 text-[30px] sm:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em] font-display text-ink-50">
+        Three ways. Homebrew is the one.
+      </h2>
+    </div>
+
+    <!-- tabs -->
+    <div class="mt-8" role="tablist" aria-label="Install method">
+      <input type="radio" name="install" id="tab-brew" class="tab-input sr-only" checked="">
+      <input type="radio" name="install" id="tab-dmg" class="tab-input sr-only">
+      <input type="radio" name="install" id="tab-src" class="tab-input sr-only">
+
+      <div class="inline-flex p-1 gap-1 glass rounded-xl">
+        <label for="tab-brew" class="px-3 py-1.5 text-[13px] font-medium text-ink-400 rounded-lg cursor-pointer hover:text-ink-100">Homebrew</label>
+        <label for="tab-dmg" class="px-3 py-1.5 text-[13px] font-medium text-ink-400 rounded-lg cursor-pointer hover:text-ink-100">DMG</label>
+        <label for="tab-src" class="px-3 py-1.5 text-[13px] font-medium text-ink-400 rounded-lg cursor-pointer hover:text-ink-100">Source</label>
+      </div>
+
+      <!-- panels: use :checked sibling CSS -->
+      <style>
+        #tab-brew:checked ~ .panels > .panel-brew,
+        #tab-dmg:checked  ~ .panels > .panel-dmg,
+        #tab-src:checked  ~ .panels > .panel-src  { display: block; }
+        .panels > .panel { display: none; }
+      </style>
+
+      <div class="panels mt-5">
+        <!-- brew -->
+        <div class="panel panel-brew">
+          <div class="grid md:grid-cols-[1fr_320px] gap-4">
+            <div class="glass rounded-xl overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2 border-b border-white/5">
+                <span class="font-mono text-[11px] text-ink-400">Terminal</span>
+                <span class="flex-1"></span>
+                <button type="button" data-copy="brew-full" class="text-[11.5px] text-ink-300 hover:text-ink-100 font-medium inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5">
+                  <svg class="copy-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="9" height="10" rx="1.5"></rect><path d="M10 4V3a1 1 0 00-1-1H4a1 1 0 00-1 1v8a1 1 0 001 1h1"></path></svg>
+                  <svg class="check-icon hidden" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3L13 4.5"></path></svg>
+                  <span class="copy-label">Copy</span>
+                </button>
+              </div>
+              <pre id="brew-full" class="px-4 py-4 font-mono text-[13px] text-ink-100 leading-relaxed overflow-x-auto">brew tap heypandax/cc-dashboard
+brew install --cask cc-dashboard</pre>
+            </div>
+            <div class="glass rounded-xl p-5">
+              <div class="text-[13px] font-semibold text-ink-50">Recommended</div>
+              <p class="mt-1.5 text-[12.5px] text-ink-300 leading-relaxed">
+                Homebrew handles Sparkle permissions, Gatekeeper quarantine, and updates <span class="font-mono text-[12px]">brew upgrade --cask cc-dashboard</span> cleanly. Works on Apple Silicon and Intel.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- dmg -->
+        <div class="panel panel-dmg">
+          <div class="grid md:grid-cols-[1fr_320px] gap-4">
+            <div class="glass rounded-xl p-6">
+              <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"></path><path d="M4 20h16"></path></svg>
+                </div>
+                <div>
+                  <div class="text-[14px] font-semibold text-ink-50">CCDashboard.dmg</div>
+                  <div class="mt-1 text-[12.5px] text-ink-300">Universal binary · Developer ID + notarized · ~ 8 MB</div>
+                  <a href="https://github.com/heypandax/cc-dashboard/releases/latest" class="mt-4 inline-flex items-center gap-2 text-[13px] font-medium px-4 py-2 rounded-lg bg-ink-100 text-ink-900 hover:bg-white">
+                    Download from latest release
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h8v8"></path><path d="M13 3L4 12"></path></svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="glass rounded-xl p-5">
+              <div class="text-[13px] font-semibold text-ink-50">After mounting</div>
+              <ol class="mt-2 text-[12.5px] text-ink-300 leading-relaxed space-y-1 list-decimal pl-5">
+                <li>Drag to <span class="font-mono text-[12px]">/Applications</span></li>
+                <li>First launch: right-click → Open (Gatekeeper)</li>
+                <li>Grant menu bar permissions in System Settings</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- source -->
+        <div class="panel panel-src">
+          <div class="grid md:grid-cols-[1fr_320px] gap-4">
+            <div class="glass rounded-xl overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2 border-b border-white/5">
+                <span class="font-mono text-[11px] text-ink-400">Terminal</span>
+                <span class="flex-1"></span>
+                <button type="button" data-copy="src-cmd" class="text-[11.5px] text-ink-300 hover:text-ink-100 font-medium inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5">
+                  <svg class="copy-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="9" height="10" rx="1.5"></rect><path d="M10 4V3a1 1 0 00-1-1H4a1 1 0 00-1 1v8a1 1 0 001 1h1"></path></svg>
+                  <svg class="check-icon hidden" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3L13 4.5"></path></svg>
+                  <span class="copy-label">Copy</span>
+                </button>
+              </div>
+              <pre id="src-cmd" class="px-4 py-4 font-mono text-[13px] text-ink-100 leading-relaxed overflow-x-auto">git clone https://github.com/heypandax/cc-dashboard.git
+cd cc-dashboard
+./make-bundle.sh
+open .build/CCDashboard.app</pre>
+            </div>
+            <div class="glass rounded-xl p-5">
+              <div class="text-[13px] font-semibold text-ink-50">Requirements</div>
+              <ul class="mt-2 text-[12.5px] text-ink-300 leading-relaxed space-y-1.5">
+                <li><span class="font-mono text-[12px] text-ink-200">Xcode 15+</span> / Swift 6 toolchain</li>
+                <li>macOS 14+ SDK</li>
+                <li>Apple Developer ID if you want notarization</li>
+              </ul>
+              <a href="https://github.com/heypandax/cc-dashboard#readme" class="mt-4 inline-flex items-center gap-1.5 text-[12.5px] text-ink-200 hover:text-ink-100">
+                Read the build notes
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h8v8"></path><path d="M13 3L4 12"></path></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────── SCREENSHOTS ───────────────── -->
+<section id="screenshots" class="relative border-t border-white/5">
+  <div class="mx-auto max-w-6xl px-5 py-20 sm:py-24">
+    <div class="max-w-2xl">
+      <div class="text-[12px] font-mono uppercase tracking-[0.14em] text-ink-400">Screenshots</div>
+      <h2 class="mt-2 text-[30px] sm:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em] font-display text-ink-50">
+        What you see, where you see it.
+      </h2>
+    </div>
+
+    <div class="mt-10 grid md:grid-cols-2 gap-4">
+
+      <!-- ─── Shot 1 · Menu bar popover ─── -->
+      <figure class="glass rounded-2xl p-2 overflow-hidden">
+        <div class="aspect-[4/3] rounded-xl overflow-hidden relative" style="background: radial-gradient(ellipse 140% 100% at 30% -10%, #2a3348 0%, #161a26 50%, #0a0d14 100%);">
+          <!-- Fake menu bar -->
+          <div class="absolute inset-x-0 top-0 h-6 flex items-center gap-4 px-3 text-[10px] text-white/80" style="background: rgba(10,12,18,0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 0.5px solid rgba(255,255,255,0.08);">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" aria-hidden="true"><path d="M5.5 2.5c.3-.9 1.1-1.6 2-1.8-.1.9-.4 1.8-1.3 2.3-.4.2-.7.1-.7-.5zM3 4C1.5 4 .5 5.3.5 7c0 2 1.5 4.5 2.8 4.5.5 0 1-.3 1.5-.3.5 0 .9.3 1.5.3 1.4 0 2.7-2.3 2.8-3.9-1-.4-1.5-1.4-1.5-2.4 0-.6.2-1.1.5-1.5C7 3 6 3 5.4 3c-.8 0-1.7.5-2.4.5-.5 0-1-.5-1-.5z"></path></svg>
+            <span class="font-semibold">Terminal</span>
+            <span class="opacity-70">File</span>
+            <span class="opacity-70">Edit</span>
+            <span class="opacity-70">View</span>
+            <span class="opacity-70">Window</span>
+            <span class="flex-1"></span>
+            <!-- status icons + our icon (highlighted) -->
+            <div class="flex items-center gap-2.5 opacity-90">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="4" width="12" height="7" rx="1"></rect><path d="M5 11l-1 2h8l-1-2"></path></svg>
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a1 1 0 011 1v1.08a4 4 0 013 3.87V11l1 1v1H3v-1l1-1V7.95a4 4 0 013-3.87V3a1 1 0 011-1z"></path></svg>
+              <!-- highlighted: our app -->
+              <div class="relative rounded-[4px] px-1 py-0.5" style="background: rgba(124,122,229,0.22); box-shadow: inset 0 0 0 0.5px rgba(124,122,229,0.5);">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <rect x="2" y="4" width="11" height="9" rx="1.6"></rect>
+                  <line x1="4" y1="6.5" x2="10.5" y2="6.5" stroke-linecap="round"></line>
+                  <line x1="4" y1="8.5" x2="9.5" y2="8.5" stroke-linecap="round"></line>
+                  <line x1="4" y1="10.5" x2="8" y2="10.5" stroke-linecap="round"></line>
+                  <circle cx="13" cy="4" r="1.4" fill="#F59E0B" stroke="none"></circle>
+                </svg>
+              </div>
+              <span class="font-mono tabular-nums text-white/80">9:41</span>
+            </div>
+          </div>
+
+          <!-- Tether arrow from icon down to popover -->
+          <svg class="absolute" style="top: 22px; right: 46px;" width="12" height="8" viewBox="0 0 12 8" aria-hidden="true">
+            <path d="M0 8L6 2L12 8Z" fill="rgba(20,22,29,0.94)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"></path>
+          </svg>
+
+          <!-- The popover itself -->
+          <div class="absolute" style="top: 30px; right: 10px; left: 10%;">
+            <div class="rounded-xl overflow-hidden" style="background: rgba(20,22,29,0.94); backdrop-filter: blur(28px) saturate(180%); -webkit-backdrop-filter: blur(28px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.1); box-shadow: 0 18px 48px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.05) inset;">
+              <!-- Popover header -->
+              <div class="flex items-center gap-2 px-3 py-2 border-b border-white/5">
+                <span class="text-[11px] font-semibold text-ink-100">Approvals</span>
+                <span class="text-[9px] font-mono font-semibold text-risk-amber px-1.5 py-0.5 rounded-full" style="background: rgba(245,158,11,0.15);">3 pending</span>
+                <span class="flex-1"></span>
+                <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md text-mint-300" style="background: rgba(16,185,129,0.12); border: 0.5px solid rgba(16,185,129,0.3);">
+                  <svg width="9" height="9" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7l3 3 6-6.5"></path></svg>
+                  Allow all
+                </span>
+              </div>
+
+              <!-- Cards -->
+              <div class="p-2 space-y-1.5">
+                <!-- card 1 amber -->
+                <div class="rounded-md p-2" style="background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.06); border-left: 2px solid #F59E0B;">
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-[11px] font-semibold text-ink-50">Bash</span>
+                    <span class="font-mono text-[9.5px] text-ink-400">a7f3c201</span>
+                    <span class="ml-auto text-[9px] text-ink-400 font-mono tabular-nums">12s</span>
+                  </div>
+                  <div class="mt-1 px-1.5 py-1 rounded font-mono text-[10px] text-ink-100 leading-snug truncate" style="background: rgba(255,255,255,0.04);">
+                    <span class="text-ink-400">$</span> npm install @apollo/server graphql-tag
+                  </div>
+                </div>
+                <!-- card 2 red -->
+                <div class="rounded-md p-2" style="background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.06); border-left: 2px solid #F87171;">
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-[11px] font-semibold text-ink-50">Bash</span>
+                    <span class="font-mono text-[9.5px] text-ink-400">e18b2f30</span>
+                    <span class="ml-auto inline-flex items-center gap-0.5 text-[9px] text-risk-red font-medium">
+                      <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 1.5L11 10H1z"></path></svg>
+                      destructive
+                    </span>
+                  </div>
+                  <div class="mt-1 px-1.5 py-1 rounded font-mono text-[10px] text-ink-100 leading-snug truncate" style="background: rgba(255,255,255,0.04);">
+                    <span class="text-ink-400">$</span> rm -rf ./dist ./coverage
+                  </div>
+                  <div class="mt-1.5 flex items-center gap-1">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded" style="background: linear-gradient(180deg, #6EE7B7, #10B981); color: #06381B;">
+                      <svg width="8" height="8" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7l3 3 6-6.5"></path></svg>
+                      Allow
+                    </span>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded text-risk-red" style="background: rgba(248,113,113,0.1); border: 0.5px solid rgba(248,113,113,0.3);">Deny</span>
+                    <span class="ml-auto text-[9px] font-mono text-ink-500">⌘↩ ⌘⌫</span>
+                  </div>
+                </div>
+                <!-- card 3 -->
+                <div class="rounded-md p-2" style="background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.06); border-left: 2px solid #F59E0B;">
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-[11px] font-semibold text-ink-50">Edit</span>
+                    <span class="font-mono text-[9.5px] text-ink-400">b9e21845</span>
+                    <span class="ml-auto text-[9px] text-ink-400 font-mono tabular-nums">34s</span>
+                  </div>
+                  <div class="mt-1 px-1.5 py-1 rounded font-mono text-[10px] text-ink-200 leading-snug truncate" style="background: rgba(255,255,255,0.04);">
+                    migrations/2026_04_trust_windows.sql
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="flex items-center gap-2 px-3 py-2 text-[10px] text-ink-400 border-t border-white/5">
+                <span class="w-1.5 h-1.5 rounded-full bg-mint-300"></span>
+                <span class="font-mono">127.0.0.1:7788</span>
+                <span class="ml-auto font-mono">8 sessions</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="px-3 py-3 text-[13px] text-ink-200">
+          <span class="font-semibold text-ink-50">Menu bar popover</span>
+          <span class="text-ink-400"> — tethered to your menu bar, appears when an approval arrives.</span>
+        </figcaption>
+      </figure>
+
+      <!-- ─── Shot 2 · Main window ─── -->
+      <figure class="glass rounded-2xl p-2 overflow-hidden">
+        <div class="aspect-[4/3] rounded-xl overflow-hidden relative" style="background: radial-gradient(ellipse 120% 80% at 30% 0%, #1f2838 0%, #0f131c 60%, #05070c 100%);">
+          <div class="absolute inset-3 rounded-[10px] overflow-hidden" style="background: #1B1E27; box-shadow: 0 0 0 0.5px rgba(255,255,255,0.08), 0 18px 48px rgba(0,0,0,0.55);">
+            <!-- title bar -->
+            <div class="h-8 flex items-center gap-2 px-3 border-b border-white/5" style="background: rgba(32,36,46,0.95); backdrop-filter: blur(24px);">
+              <span class="w-2.5 h-2.5 rounded-full" style="background: #ED6A5E;"></span>
+              <span class="w-2.5 h-2.5 rounded-full" style="background: #F4BE4F;"></span>
+              <span class="w-2.5 h-2.5 rounded-full" style="background: #61C454;"></span>
+              <span class="flex-1 text-center text-[11px] font-semibold text-ink-300 tracking-tight">cc-dashboard</span>
+              <span class="w-12"></span>
+            </div>
+            <!-- body: sidebar + detail -->
+            <div class="grid grid-cols-[38%_1fr] h-[calc(100%-32px)]">
+              <!-- sidebar -->
+              <div class="border-r border-white/5 overflow-hidden" style="background: rgba(27,30,39,0.6);">
+                <div class="flex items-baseline gap-1.5 px-3 pt-2.5 pb-1.5">
+                  <span class="text-[9px] font-semibold tracking-wider uppercase text-ink-400">Sessions</span>
+                  <span class="text-[9px] font-mono text-ink-500 tabular-nums">· 5</span>
+                </div>
+                <div class="space-y-0.5 px-1.5">
+                  <!-- row selected -->
+                  <div class="px-2 py-1.5 rounded-md" style="background: rgba(124,122,229,0.14);">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-1.5 h-1.5 rounded-full" style="background: #F59E0B;"></span>
+                      <span class="font-mono text-[10px] font-semibold text-ink-50">a7f3c201</span>
+                      <span class="ml-auto text-[9px] text-ink-500 font-mono tabular-nums">12s</span>
+                    </div>
+                    <div class="mt-0.5 font-mono text-[9px] text-ink-400 truncate" dir="rtl" style="unicode-bidi: plaintext;">~/code/apollo-server/api</div>
+                    <div class="mt-0.5 flex gap-1 text-[9px] font-mono">
+                      <span class="text-ink-500">tool:</span>
+                      <span class="text-risk-amber font-semibold">Bash</span>
+                      <span class="ml-auto text-risk-amber font-semibold">2 pending</span>
+                    </div>
+                  </div>
+                  <!-- row -->
+                  <div class="px-2 py-1.5 rounded-md">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-1.5 h-1.5 rounded-full" style="background: #F59E0B;"></span>
+                      <span class="font-mono text-[10px] font-semibold text-ink-100">b9e21845</span>
+                      <span class="ml-auto text-[9px] text-ink-500 font-mono tabular-nums">34s</span>
+                    </div>
+                    <div class="mt-0.5 font-mono text-[9px] text-ink-400 truncate">…/apollo-server/migrations</div>
+                    <div class="mt-0.5 flex gap-1 text-[9px] font-mono">
+                      <span class="text-ink-500">tool:</span>
+                      <span class="text-risk-amber font-semibold">Edit</span>
+                      <span class="ml-auto text-risk-amber font-semibold">1 pending</span>
+                    </div>
+                  </div>
+                  <!-- row with trust badge -->
+                  <div class="px-2 py-1.5 rounded-md">
+                    <div class="flex items-center gap-1 flex-wrap">
+                      <span class="w-1.5 h-1.5 rounded-full" style="background: #5B9CFF;"></span>
+                      <span class="font-mono text-[10px] font-semibold text-ink-100">e18b2f30</span>
+                      <span class="inline-flex items-center gap-0.5 text-[8px] font-mono font-semibold px-1 py-px rounded-full text-mint-300" style="background: rgba(16,185,129,0.14); border: 0.5px solid rgba(16,185,129,0.35);">
+                        <svg width="6" height="6" viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4.5" cy="4.5" r="3.5"></circle><path d="M4.5 2.5v2.2l1.4 1"></path></svg>
+                        auto 9:42
+                      </span>
+                    </div>
+                    <div class="mt-0.5 font-mono text-[9px] text-ink-400 truncate">…/ml-pipeline</div>
+                  </div>
+                  <!-- row idle -->
+                  <div class="px-2 py-1.5 rounded-md">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-1.5 h-1.5 rounded-full bg-ink-400"></span>
+                      <span class="font-mono text-[10px] font-semibold text-ink-300">c4d8710a</span>
+                    </div>
+                    <div class="mt-0.5 font-mono text-[9px] text-ink-500 truncate">…/design-system/tokens</div>
+                  </div>
+                  <!-- row done -->
+                  <div class="px-2 py-1.5 rounded-md">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-1.5 h-1.5 rounded-full" style="background: #10B981;"></span>
+                      <span class="font-mono text-[10px] font-semibold text-ink-300">6a3e88c1</span>
+                    </div>
+                    <div class="mt-0.5 font-mono text-[9px] text-ink-500 truncate">…/scratch/algo-problems</div>
+                  </div>
+                </div>
+              </div>
+              <!-- detail -->
+              <div class="flex flex-col">
+                <div class="h-8 flex items-center gap-2 px-3 border-b border-white/5">
+                  <span class="text-[11px] font-semibold text-ink-50">Approvals</span>
+                  <span class="text-[9px] font-mono font-semibold text-risk-amber px-1.5 py-0.5 rounded-full" style="background: rgba(245,158,11,0.15);">3 pending</span>
+                  <span class="flex-1"></span>
+                  <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded text-mint-300" style="background: rgba(16,185,129,0.12); border: 0.5px solid rgba(16,185,129,0.3);">
+                    <svg width="9" height="9" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7l3 3 6-6.5"></path></svg>
+                    Allow all 3
+                  </span>
+                </div>
+                <div class="flex-1 p-3 space-y-2 overflow-hidden">
+                  <div class="rounded-lg p-2.5" style="background: #252833; border: 0.5px solid rgba(255,255,255,0.08); border-left: 2.5px solid #F59E0B;">
+                    <div class="flex items-baseline gap-1.5">
+                      <span class="text-[12px] font-semibold text-ink-50">Bash</span>
+                      <span class="font-mono text-[10px] text-ink-400">a7f3c201</span>
+                      <span class="ml-auto text-[9.5px] text-ink-400 font-mono tabular-nums">12s</span>
+                    </div>
+                    <div class="mt-1 font-mono text-[9.5px] text-ink-400 truncate" dir="rtl" style="unicode-bidi: plaintext;">~/code/apollo-server/api</div>
+                    <div class="mt-1.5 px-2 py-1.5 rounded font-mono text-[10px] text-ink-100 leading-snug" style="background: #191B22; border: 0.5px solid rgba(255,255,255,0.05);">
+                      <div class="truncate"><span class="text-ink-500">command:</span> npm install @apollo/server graphql-tag --save</div>
+                      <div class="truncate"><span class="text-ink-500">desc:</span> Install GraphQL server dependencies</div>
+                    </div>
+                    <div class="mt-2 flex items-center gap-1.5">
+                      <span class="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded" style="background: linear-gradient(180deg, #6EE7B7, #10B981); color: #06381B; box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.4);">
+                        <svg width="9" height="9" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7l3 3 6-6.5"></path></svg>
+                        Allow
+                      </span>
+                      <span class="text-[10.5px] font-semibold px-2.5 py-1 rounded text-risk-red" style="background: rgba(248,113,113,0.08); border: 0.5px solid rgba(248,113,113,0.3);">Deny</span>
+                    </div>
+                  </div>
+                  <div class="rounded-lg p-2" style="background: #252833; border: 0.5px solid rgba(255,255,255,0.08); border-left: 2.5px solid #F87171;">
+                    <div class="flex items-baseline gap-1.5">
+                      <span class="text-[12px] font-semibold text-ink-50">Write</span>
+                      <span class="font-mono text-[10px] text-ink-400">d26f49bb</span>
+                      <span class="ml-auto inline-flex items-center gap-0.5 text-[9px] text-risk-red font-medium">
+                        <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 1.5L11 10H1z"></path></svg>
+                        destructive
+                      </span>
+                    </div>
+                    <div class="mt-1 font-mono text-[9.5px] text-ink-400 truncate">/etc/hosts</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="px-3 py-3 text-[13px] text-ink-200">
+          <span class="font-semibold text-ink-50">Main window</span>
+          <span class="text-ink-400"> — open from the menu. Triage many sessions at once.</span>
+        </figcaption>
+      </figure>
+
+      <!-- ─── Shot 3 · Notification (desktop) ─── -->
+      <figure class="glass rounded-2xl p-2 overflow-hidden md:col-span-2">
+        <div class="aspect-[21/9] rounded-xl overflow-hidden relative" style="background: radial-gradient(ellipse 100% 70% at 80% 0%, #2f3a55 0%, #151a28 60%, #080a12 100%);">
+          <!-- fake menu bar -->
+          <div class="absolute inset-x-0 top-0 h-6 flex items-center gap-4 px-4 text-[10px] text-white/80" style="background: rgba(10,12,18,0.5); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 0.5px solid rgba(255,255,255,0.08);">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" aria-hidden="true"><path d="M5.5 2.5c.3-.9 1.1-1.6 2-1.8-.1.9-.4 1.8-1.3 2.3-.4.2-.7.1-.7-.5zM3 4C1.5 4 .5 5.3.5 7c0 2 1.5 4.5 2.8 4.5.5 0 1-.3 1.5-.3.5 0 .9.3 1.5.3 1.4 0 2.7-2.3 2.8-3.9-1-.4-1.5-1.4-1.5-2.4 0-.6.2-1.1.5-1.5C7 3 6 3 5.4 3c-.8 0-1.7.5-2.4.5-.5 0-1-.5-1-.5z"></path></svg>
+            <span class="font-semibold">Xcode</span>
+            <span class="opacity-70">File</span>
+            <span class="opacity-70">Edit</span>
+            <span class="opacity-70">Product</span>
+            <span class="flex-1"></span>
+            <!-- our icon with pending dot -->
+            <div class="relative">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" class="opacity-90">
+                <rect x="2" y="4" width="11" height="9" rx="1.6"></rect>
+                <line x1="4" y1="6.5" x2="10.5" y2="6.5" stroke-linecap="round"></line>
+                <line x1="4" y1="8.5" x2="9.5" y2="8.5" stroke-linecap="round"></line>
+                <line x1="4" y1="10.5" x2="8" y2="10.5" stroke-linecap="round"></line>
+                <circle cx="13" cy="4" r="1.6" fill="#F59E0B" stroke="none"></circle>
+              </svg>
+            </div>
+            <span class="font-mono tabular-nums text-white/80">9:41</span>
+          </div>
+
+          <!-- Notification card -->
+          <div class="absolute" style="top: 34px; right: 16px; width: 46%; max-width: 380px;">
+            <div class="rounded-[14px] p-3 flex gap-3" style="background: rgba(30,32,42,0.92); backdrop-filter: blur(36px) saturate(180%); -webkit-backdrop-filter: blur(36px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.12); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.05) inset;">
+              <!-- app icon (mini) -->
+              <div class="shrink-0 w-9 h-9 rounded-[8px] overflow-hidden relative" style="background: linear-gradient(180deg, #2E4A6B, #1B2E4A); box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                <svg viewBox="0 0 36 36" class="absolute inset-0">
+                  <rect x="6" y="11" width="24" height="14" rx="2.5" fill="#E8F0FC"></rect>
+                  <g stroke="#1B2E4A" stroke-linecap="round" stroke-width="1.3">
+                    <line x1="9" y1="15" x2="23" y2="15" opacity="0.85"></line>
+                    <line x1="9" y1="18.5" x2="21" y2="18.5" opacity="0.55"></line>
+                    <line x1="9" y1="22" x2="18" y2="22" opacity="0.35"></line>
+                  </g>
+                  <path d="M23.5 15.2 L25 16.7 L28 13.5" fill="none" stroke="#4ADE80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-[11.5px] font-semibold text-white">CC Dashboard</span>
+                  <span class="text-[10px] text-white/50 font-mono tabular-nums ml-auto">now</span>
+                </div>
+                <div class="mt-0.5 text-[12.5px] text-white leading-snug">
+                  Approval needed · <span class="font-mono">Bash</span>
+                </div>
+                <div class="mt-0.5 font-mono text-[11px] text-white/70 truncate">rm -rf ./dist ./coverage</div>
+                <div class="mt-2 flex gap-1.5">
+                  <span class="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded-md" style="background: linear-gradient(180deg, #6EE7B7, #10B981); color: #06381B;">
+                    <svg width="9" height="9" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7l3 3 6-6.5"></path></svg>
+                    Allow
+                  </span>
+                  <span class="text-[10.5px] font-semibold px-2.5 py-1 rounded-md text-white/90" style="background: rgba(255,255,255,0.08); border: 0.5px solid rgba(255,255,255,0.12);">Deny</span>
+                  <span class="text-[10.5px] font-semibold px-2.5 py-1 rounded-md text-white/70" style="background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1);">Allow 10m</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- left: terminal context in background -->
+          <div class="absolute" style="top: 44px; left: 5%; width: 42%;">
+            <div class="rounded-lg overflow-hidden opacity-85" style="background: rgba(12,14,22,0.82); border: 0.5px solid rgba(255,255,255,0.08); box-shadow: 0 12px 32px rgba(0,0,0,0.45);">
+              <div class="h-5 flex items-center gap-1 px-2 border-b border-white/5" style="background: rgba(24,27,36,0.9);">
+                <span class="w-2 h-2 rounded-full" style="background: #ED6A5E;"></span>
+                <span class="w-2 h-2 rounded-full" style="background: #F4BE4F;"></span>
+                <span class="w-2 h-2 rounded-full" style="background: #61C454;"></span>
+                <span class="ml-2 font-mono text-[9px] text-white/60">ml-pipeline — zsh</span>
+              </div>
+              <div class="p-2 font-mono text-[10px] text-white/75 leading-relaxed">
+                <div><span class="text-mint-300">➜</span> <span class="text-indigo-400">ml-pipeline</span> claude</div>
+                <div class="text-white/60">● Running build pipeline…</div>
+                <div class="text-white/50">◆ Tool: <span class="text-white/80">Bash</span></div>
+                <div class="text-risk-amber">⏸ Waiting for approval in menu bar…</div>
+                <div class="mt-0.5 w-1.5 h-2.5 inline-block" style="background: white; opacity: 0.85;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="px-3 py-3 text-[13px] text-ink-200">
+          <span class="font-semibold text-ink-50">System notification</span>
+          <span class="text-ink-400"> — Allow / Deny inline, or click through to the popover.</span>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────── SHORTCUTS ───────────────── -->
+<section id="shortcuts" class="relative border-t border-white/5 bg-ink-950/40">
+  <div class="mx-auto max-w-6xl px-5 py-20 sm:py-24">
+    <div class="grid md:grid-cols-[1fr_1fr] gap-10 items-start">
+      <div>
+        <div class="text-[12px] font-mono uppercase tracking-[0.14em] text-ink-400">Keyboard</div>
+        <h2 class="mt-2 text-[30px] sm:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em] font-display text-ink-50">
+          Stay on the home row.
+        </h2>
+        <p class="mt-3 text-ink-300 text-[15px] leading-relaxed max-w-lg">
+          Approvals are faster from the keyboard. The popover captures focus so the shortcuts work immediately — no clicking the card first.
+        </p>
+      </div>
+
+      <div class="glass rounded-2xl overflow-hidden">
+        <table class="w-full text-[13px]">
+          <thead class="text-[11px] uppercase tracking-wider text-ink-400 border-b border-white/5">
+            <tr>
+              <th class="text-left font-semibold px-5 py-3 w-[44%]">Shortcut</th>
+              <th class="text-left font-semibold px-5 py-3">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 font-mono text-ink-100">⌘↩</td>
+              <td class="px-5 py-3 text-ink-300">Allow all pending</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 font-mono text-ink-100">⌘⌫</td>
+              <td class="px-5 py-3 text-ink-300">Deny current</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 font-mono text-ink-100">⌘1 · ⌘2 · ⌘3</td>
+              <td class="px-5 py-3 text-ink-300">Allow for 2 / 10 / 30 min</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 font-mono text-ink-100">⌘J</td>
+              <td class="px-5 py-3 text-ink-300">Next / previous card (↑ / ↓)</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 font-mono text-ink-100">⌘P</td>
+              <td class="px-5 py-3 text-ink-300">Pin popover</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 font-mono text-ink-100">⌘Q</td>
+              <td class="px-5 py-3 text-ink-300">Quit</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────── FAQ ───────────────── -->
+<section id="faq" class="relative">
+  <div class="mx-auto max-w-3xl px-5 py-20 sm:py-24">
+    <div class="text-[12px] font-mono uppercase tracking-[0.14em] text-ink-400">FAQ</div>
+    <h2 class="mt-2 text-[30px] sm:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em] font-display text-ink-50">
+      Questions the first 50 installers asked.
+    </h2>
+
+    <div class="mt-10 space-y-2">
+      <details class="glass rounded-xl px-5 py-4 group">
+        <summary class="flex items-center gap-3">
+          <span class="text-[15px] font-medium text-ink-100 flex-1">Why isn't this on the Mac App Store?</span>
+          <svg class="chev w-4 h-4 text-ink-400 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6l4 4 4-4"></path></svg>
+        </summary>
+        <div class="mt-3 text-[13.5px] text-ink-300 leading-relaxed">
+          The sandbox rules can't accommodate reading <span class="font-mono text-[12.5px]">~/.claude/settings.json</span> and a local HTTP server from a user-facing menu-bar surface. We went the Developer ID + Apple-notarized route instead — same trust level, wider capabilities.
+        </div>
+      </details>
+
+      <details class="glass rounded-xl px-5 py-4 group">
+        <summary class="flex items-center gap-3">
+          <span class="text-[15px] font-medium text-ink-100 flex-1">Does it modify my <span class="font-mono text-[13.5px]">~/.claude/settings.json</span>?</span>
+          <svg class="chev w-4 h-4 text-ink-400 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6l4 4 4-4"></path></svg>
+        </summary>
+        <div class="mt-3 text-[13.5px] text-ink-300 leading-relaxed">
+          Yes. Five <span class="font-mono text-[12.5px]">PreToolUse</span> hook entries get appended on first launch. The original file is backed up to <span class="font-mono text-[12.5px]">~/.claude/settings.backup-{timestamp}.json</span>. Uninstall removes both.
+        </div>
+      </details>
+
+      <details class="glass rounded-xl px-5 py-4 group">
+        <summary class="flex items-center gap-3">
+          <span class="text-[15px] font-medium text-ink-100 flex-1">What happens when the app isn't running?</span>
+          <svg class="chev w-4 h-4 text-ink-400 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6l4 4 4-4"></path></svg>
+        </summary>
+        <div class="mt-3 text-[13.5px] text-ink-300 leading-relaxed">
+          The hook performs a 2-second health check against <span class="font-mono text-[12.5px]">127.0.0.1:7788/healthz</span>. If it fails, control is handed back to Claude Code and you get the native TUI prompt. Zero blocking, even if the app crashes.
+        </div>
+      </details>
+
+      <details class="glass rounded-xl px-5 py-4 group">
+        <summary class="flex items-center gap-3">
+          <span class="text-[15px] font-medium text-ink-100 flex-1">Is it open source?</span>
+          <svg class="chev w-4 h-4 text-ink-400 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6l4 4 4-4"></path></svg>
+        </summary>
+        <div class="mt-3 text-[13.5px] text-ink-300 leading-relaxed">
+          MIT, <a class="underline underline-offset-2 text-ink-100 hover:text-white" href="https://github.com/heypandax/cc-dashboard">github.com/heypandax/cc-dashboard</a>. PRs welcome — see CONTRIBUTING.md for the build prerequisites.
+        </div>
+      </details>
+
+      <details class="glass rounded-xl px-5 py-4 group">
+        <summary class="flex items-center gap-3">
+          <span class="text-[15px] font-medium text-ink-100 flex-1">What data gets collected?</span>
+          <svg class="chev w-4 h-4 text-ink-400 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6l4 4 4-4"></path></svg>
+        </summary>
+        <div class="mt-3 text-[13.5px] text-ink-300 leading-relaxed">
+          Anonymous install + launch counts via Firebase, and crash reports via Crashlytics. Command content, file paths, and <span class="font-mono text-[12.5px]">cwd</span> values never leave your Mac. One command to opt out entirely:
+          <pre class="mt-2 px-3 py-2 rounded-md bg-ink-800 border border-white/5 font-mono text-[12.5px] text-ink-100 overflow-x-auto">defaults write com.heypanda.cc-dashboard analyticsEnabled 0</pre>
+        </div>
+      </details>
+
+      <details class="glass rounded-xl px-5 py-4 group">
+        <summary class="flex items-center gap-3">
+          <span class="text-[15px] font-medium text-ink-100 flex-1">Why port 7788?</span>
+          <svg class="chev w-4 h-4 text-ink-400 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6l4 4 4-4"></path></svg>
+        </summary>
+        <div class="mt-3 text-[13.5px] text-ink-300 leading-relaxed">
+          Unregistered in IANA, rarely clashes with dev tooling. Configurable via <span class="font-mono text-[12.5px]">defaults write com.heypanda.cc-dashboard serverPort 9988</span>.
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────── FOOTER ───────────────── -->
+<footer class="border-t border-white/5 bg-ink-950/60">
+  <div class="mx-auto max-w-6xl px-5 py-10 grid sm:grid-cols-[1fr_auto] gap-6 items-start">
+    <div>
+      <div class="flex items-center gap-2">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+          <rect x="3" y="5.5" width="15" height="12" rx="2.2" stroke="currentColor" stroke-width="1.6" class="text-ink-200"></rect>
+          <line x1="6" y1="9" x2="15" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="text-ink-200"></line>
+          <line x1="6" y1="11.5" x2="13.5" y2="11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="text-ink-200"></line>
+          <line x1="6" y1="14" x2="12" y2="14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="text-ink-200"></line>
+          <circle cx="18" cy="5.5" r="2" fill="#F59E0B"></circle>
+        </svg>
+        <span class="text-[13px] font-semibold text-ink-100">CC Dashboard</span>
+      </div>
+      <p class="mt-2 text-[12.5px] text-ink-400 max-w-md leading-relaxed">
+        © 2026 heypandax · Built with Swift 6, Sparkle, and Hummingbird. License: MIT.
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
+      <a class="text-ink-300 hover:text-ink-100" href="https://github.com/heypandax/cc-dashboard">GitHub</a>
+      <a class="text-ink-300 hover:text-ink-100" href="https://github.com/heypandax/cc-dashboard/issues">Issues</a>
+      <a class="text-ink-300 hover:text-ink-100" href="https://github.com/heypandax/cc-dashboard/discussions">Discussions</a>
+      <a class="text-ink-300 hover:text-ink-100" href="https://github.com/heypandax/cc-dashboard/blob/main/LICENSE">MIT License</a>
+      <a class="text-ink-300 hover:text-ink-100" href="https://github.com/heypandax/cc-dashboard/releases">Releases</a>
+    </div>
+  </div>
+</footer>
+
+<!-- minimal copy-to-clipboard script -->
+<script>
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-copy]');
+    if (!btn) return;
+    const target = document.getElementById(btn.dataset.copy);
+    if (!target) return;
+    const text = target.textContent.trim();
+    navigator.clipboard.writeText(text).then(() => {
+      const copy = btn.querySelector('.copy-icon');
+      const check = btn.querySelector('.check-icon');
+      const label = btn.querySelector('.copy-label');
+      if (copy) copy.classList.add('hidden');
+      if (check) check.classList.remove('hidden');
+      if (label) label.textContent = 'Copied';
+      setTimeout(() => {
+        if (copy) copy.classList.remove('hidden');
+        if (check) check.classList.add('hidden');
+        if (label) label.textContent = 'Copy';
+      }, 1800);
+    }).catch(() => {
+      // fallback: select text
+      const range = document.createRange();
+      range.selectNode(target);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+  });
+</script>
+
+
+</body></html>
