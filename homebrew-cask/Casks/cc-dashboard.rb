@@ -10,7 +10,7 @@
 
 cask "cc-dashboard" do
   version "0.1.0"
-  sha256 "REPLACE_WITH_DMG_SHA256"
+  sha256 "3fd143ea804e84bc0fac1be260eebf11f188b538cf164081bcde041dddbb398e"
 
   url "https://github.com/heypandax/cc-dashboard/releases/download/v#{version}/cc-dashboard.dmg"
   name "Claude Code Dashboard"
