@@ -12,10 +12,12 @@ enum Telemetry {
         case approvalDecided   = "approval_decided"
         case allowAllUsed      = "allow_all_used"
         case autoAllowSet      = "auto_allow_set"
+        case sessionRenamed    = "session_renamed"
+        case trustFromRow      = "trust_from_row"
     }
 
     enum Key: String {
-        case tool, risk, decision, count, minutes, version, phase
+        case tool, risk, decision, count, minutes, version, phase, cleared
         case trustMinutes = "trust_minutes"
     }
 

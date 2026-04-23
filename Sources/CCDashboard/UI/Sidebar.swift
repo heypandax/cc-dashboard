@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// 纯 Circle 状态点,running/waitingApproval 有外扩 pulse 环。
@@ -80,24 +81,122 @@ struct TrustBadge: View {
     }
 }
 
+/// 行标题:未编辑态 Text(alias 或 FriendlyName),双击进入编辑态 TextField。
+/// editing 由 parent (SessionRow) 持有并以 Binding 下传 —— context menu "Rename…" 才能触发。
+struct SessionNameField: View {
+    let session: SessionState
+    let dashboard: Dashboard
+    @Binding var editing: Bool
+
+    @State private var draft: String = ""
+    @FocusState private var focused: Bool
+
+    private var displayName: String {
+        if let alias = session.alias, !alias.isEmpty { return alias }
+        return String(session.id.prefix(8))
+    }
+
+    /// 未 alias 时用 monospace 显示 hex id,和老版视觉一致;alias 后改成常规字体更像人话。
+    private var font: Font {
+        let hasAlias = (session.alias?.isEmpty == false)
+        return hasAlias
+            ? .system(size: 12, weight: .semibold)
+            : .system(size: 12, weight: .semibold, design: .monospaced)
+    }
+
+    var body: some View {
+        Group {
+            if editing {
+                TextField("", text: $draft, prompt: Text("Name this session"))
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold))
+                    .focused($focused)
+                    .onSubmit { commit() }
+                    .onExitCommand { cancel() }   // Esc
+                    .onChange(of: focused) { _, isFocused in
+                        if !isFocused && editing {
+                            // 失焦也提交。commit 本身幂等,和 onSubmit 的二次触发无副作用。
+                            commit()
+                        }
+                    }
+                    .onAppear {
+                        draft = session.alias ?? ""
+                        focused = true
+                    }
+            } else {
+                Text(displayName)
+                    .font(font)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .onTapGesture(count: 2) { editing = true }
+            }
+        }
+    }
+
+    private func commit() {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        dashboard.renameSession(
+            sessionID: session.id,
+            alias: trimmed.isEmpty ? nil : trimmed
+        )
+        editing = false
+    }
+
+    private func cancel() { editing = false }
+}
+
+/// Row hover 时出现的小时钟按钮,点击弹 TrustPickerMenu —— 非审批路径直接给 session 开窗。
+/// intro / footer 跟 approval 卡片里那一版不同:不是"允许这次 + 开窗",而是纯"开窗"。
+struct RowTrustMenu: View {
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        TrustPickerMenu(
+            introCopy: "Start trust window",
+            footerCopy: "During this window, all tool calls from this session auto-approve.",
+            onSelect: onSelect
+        )
+    }
+}
+
 struct SessionRow: View {
     let session: SessionState
     let dashboard: Dashboard
+    @State private var editing = false
+    @State private var hovered = false
+    @State private var trustPopoverOpen = false
 
     private var pendingCount: Int {
         dashboard.approvals.filter { $0.sessionId == session.id }.count
+    }
+
+    private var hasActiveTrust: Bool {
+        (session.autoAllowUntil ?? .distantPast) > Date()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
                 StatusDot(status: session.status)
-                Text(String(session.id.prefix(8)))
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
+                SessionNameField(session: session, dashboard: dashboard, editing: $editing)
                 if let until = session.autoAllowUntil, until > Date() {
                     TrustBadge(expiresAt: until) {
                         dashboard.clearTrust(sessionID: session.id)
+                    }
+                } else if hovered {
+                    Button { trustPopoverOpen = true } label: {
+                        Image(systemName: "clock.badge.checkmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(CC.mintInk)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Start auto-trust window")
+                    .popover(isPresented: $trustPopoverOpen, arrowEdge: .bottom) {
+                        RowTrustMenu { mins in
+                            dashboard.trustSession(sessionID: session.id, minutes: mins)
+                            Telemetry.track(.trustFromRow, [.minutes: mins])
+                            trustPopoverOpen = false
+                        }
                     }
                 }
                 Spacer(minLength: 4)
@@ -128,6 +227,28 @@ struct SessionRow: View {
             }
         }
         .padding(.vertical, 3)
+        .onHover { hovered = $0 }
+        .contextMenu {
+            Button("Rename…") { editing = true }
+            Menu("Start trust window") {
+                ForEach(trustMinuteOptions, id: \.self) { mins in
+                    Button("Allow for \(mins) min") {
+                        dashboard.trustSession(sessionID: session.id, minutes: mins)
+                        Telemetry.track(.trustFromRow, [.minutes: mins])
+                    }
+                }
+            }
+            if hasActiveTrust {
+                Button("Cancel auto-allow") {
+                    dashboard.clearTrust(sessionID: session.id)
+                }
+            }
+            Divider()
+            Button("Copy session ID") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(session.id, forType: .string)
+            }
+        }
     }
 }
 

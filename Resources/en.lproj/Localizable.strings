@@ -48,3 +48,10 @@
 "Claude Code · Approval needed" = "Claude Code · Approval needed";
 "Claude Code · Session done" = "Claude Code · Session done";
 "Tool: %@" = "Tool: %@";
+
+/* Session row context menu + inline rename */
+"Rename…" = "Rename…";
+"Copy session ID" = "Copy session ID";
+"Name this session" = "Name this session";
+"Start trust window" = "Start trust window";
+"Start auto-trust window" = "Start auto-trust window";

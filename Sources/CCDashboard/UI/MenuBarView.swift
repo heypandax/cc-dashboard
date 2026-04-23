@@ -127,9 +127,10 @@ struct MenuApprovalCard: View {
             HStack(spacing: 6) {
                 Text(approval.toolName)
                     .font(.system(size: 13, weight: .semibold))
-                Text(String(approval.sessionId.prefix(8)))
+                Text(dashboard.displayName(forSessionID: approval.sessionId))
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.tertiary)
+                    .lineLimit(1)
                 Spacer()
                 RelativeTimeText(date: approval.createdAt)
                     .font(.system(size: 10).monospacedDigit())

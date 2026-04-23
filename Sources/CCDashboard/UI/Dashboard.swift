@@ -88,6 +88,8 @@ final class Dashboard {
                    // session 的 autoAllowUntil 字段已通过 sessionUpsert 同步,UI 自动 react。
         case .autoAllowCleared:
             break
+        case .sessionAliasChanged:
+            break  // alias 已随 sessionUpsert 更新。这个 case 留作 test 断言锚点 + 未来 UI flash 挂钩。
         }
     }
 
@@ -116,6 +118,24 @@ final class Dashboard {
 
     func clearTrust(sessionID: String) {
         Task { await store.clearAutoAllow(sessionID: sessionID) }
+    }
+
+    /// Optimistic UI:先本地更新,actor broadcast 回来再 idempotent 覆盖。
+    /// Telemetry 在 store 侧唯一上报(HTTP + UI 两条路径都经过 setSessionAlias)。
+    func renameSession(sessionID: String, alias: String?) {
+        if let idx = sessions.firstIndex(where: { $0.id == sessionID }) {
+            sessions[idx].alias = alias
+        }
+        Task { await store.setSessionAliasById(sessionID: sessionID, alias: alias) }
+    }
+
+    /// Sidebar / ApprovalCard / MenuBar 共用:alias 优先,否则回落到 sessionId 前 8 位 hex。
+    /// 用户自己命名的 alias 才有产品价值,自动生成的昵称已评估为噪音。
+    func displayName(forSessionID id: String) -> String {
+        if let alias = sessions.first(where: { $0.id == id })?.alias, !alias.isEmpty {
+            return alias
+        }
+        return String(id.prefix(8))
     }
 
     func allowAll() {

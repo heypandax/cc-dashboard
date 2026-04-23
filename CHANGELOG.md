@@ -10,6 +10,13 @@ Versioning][semver].
 ## [Unreleased]
 
 ### Added
+- Rename sessions inline (double-click the name) or via the row context menu.
+  Aliases are keyed by cwd and persisted in `UserDefaults` under
+  `sessionAliases`, so reopening a project auto-restores the name. When no
+  alias is set the row falls back to the first 8 characters of the session id.
+- Row-level auto-trust: hover a session to reveal a clock icon that opens a
+  2 / 10 / 30-minute trust picker, or use the context menu — no waiting for
+  the next approval to set a window.
 - Firebase Analytics + Crashlytics integration (anonymous events only — never
   command content, file paths, or cwd). Opt out via `defaults write
   com.heypanda.cc-dashboard analyticsEnabled 0`.

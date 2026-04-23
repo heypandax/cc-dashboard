@@ -102,7 +102,7 @@ final class ModelsTests: XCTestCase {
             id: "s1", cwd: "/tmp", status: .running,
             startedAt: fixedDate, lastActivityAt: fixedDate,
             transcriptPath: nil, lastTool: nil, lastNotification: nil,
-            autoAllowUntil: nil
+            autoAllowUntil: nil, alias: nil
         )
         let approval = ApprovalRequest(
             id: "a1", sessionId: "s1", toolName: "Bash",
@@ -114,14 +114,16 @@ final class ModelsTests: XCTestCase {
         encoder.dateEncodingStrategy = .iso8601
 
         let cases: [(DashboardEvent, String)] = [
-            (.sessionUpsert(session),                               "session_upsert"),
-            (.sessionRemove("s1"),                                  "session_remove"),
-            (.sessionFinished(session),                             "session_finished"),
-            (.approvalAdd(approval),                                "approval_add"),
-            (.approvalResolve("a1"),                                "approval_resolve"),
-            (.autoAllowSet(sessionId: "s1", until: fixedDate),      "auto_allow_set"),
-            (.autoAllowCleared(sessionId: "s1"),                    "auto_allow_cleared"),
-            (.snapshot(sessions: [session], approvals: [approval]), "snapshot")
+            (.sessionUpsert(session),                                       "session_upsert"),
+            (.sessionRemove("s1"),                                          "session_remove"),
+            (.sessionFinished(session),                                     "session_finished"),
+            (.approvalAdd(approval),                                        "approval_add"),
+            (.approvalResolve("a1"),                                        "approval_resolve"),
+            (.autoAllowSet(sessionId: "s1", until: fixedDate),              "auto_allow_set"),
+            (.autoAllowCleared(sessionId: "s1"),                            "auto_allow_cleared"),
+            (.sessionAliasChanged(sessionId: "s1", alias: "hello"),         "session_alias_changed"),
+            (.sessionAliasChanged(sessionId: "s1", alias: nil),             "session_alias_changed"),
+            (.snapshot(sessions: [session], approvals: [approval]),         "snapshot")
         ]
 
         for (event, expectedType) in cases {
@@ -148,6 +150,27 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(obj["type"] as? String, "auto_allow_set")
         XCTAssertEqual(obj["sessionId"] as? String, "s1")
         XCTAssertEqual(obj["until"] as? String, "2023-11-14T22:13:20Z")
+    }
+
+    // MARK: - sessionAliasChanged:alias 非 nil 带字段,nil 省字段
+
+    func testDashboardEventSessionAliasChangedShape() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        let withAlias = DashboardEvent.sessionAliasChanged(sessionId: "s1", alias: "my project")
+        let d1 = try encoder.encode(withAlias)
+        let obj1 = try XCTUnwrap(try JSONSerialization.jsonObject(with: d1) as? [String: Any])
+        XCTAssertEqual(obj1["type"] as? String, "session_alias_changed")
+        XCTAssertEqual(obj1["sessionId"] as? String, "s1")
+        XCTAssertEqual(obj1["alias"] as? String, "my project")
+
+        let cleared = DashboardEvent.sessionAliasChanged(sessionId: "s1", alias: nil)
+        let d2 = try encoder.encode(cleared)
+        let obj2 = try XCTUnwrap(try JSONSerialization.jsonObject(with: d2) as? [String: Any])
+        XCTAssertEqual(obj2["type"] as? String, "session_alias_changed")
+        XCTAssertEqual(obj2["sessionId"] as? String, "s1")
+        XCTAssertNil(obj2["alias"], "alias=nil 应通过 encodeIfPresent 省略字段,不编成 null")
     }
 
     // MARK: - ApprovalRequest 完整 roundtrip

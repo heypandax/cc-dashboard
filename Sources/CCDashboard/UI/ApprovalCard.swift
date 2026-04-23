@@ -92,14 +92,17 @@ struct ApprovalQueueView: View {
             if dashboard.approvals.isEmpty {
                 EmptyApprovalsView(autoAllowCount: autoAllowCount)
             } else {
-                List {
-                    ForEach(dashboard.approvals) { approval in
-                        ApprovalRow(approval: approval, dashboard: dashboard)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                // 为什么不是 List:macOS 下 List 会把 row 内第一次 click 当作选中行吞掉,
+                // 要点两下 Allow 才响应。ScrollView+LazyVStack 没这个坑,且我们不需要选中语义。
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(dashboard.approvals) { approval in
+                            ApprovalRow(approval: approval, dashboard: dashboard)
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
                 }
-                .listStyle(.plain)
             }
         }
     }
@@ -242,9 +245,10 @@ struct ApprovalRow: View {
                 Text(approval.toolName)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
-                Text(String(approval.sessionId.prefix(8)))
+                Text(dashboard.displayName(forSessionID: approval.sessionId))
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundStyle(.tertiary)
+                    .lineLimit(1)
                 Spacer()
                 HStack(spacing: 3) {
                     Image(systemName: "clock")
@@ -412,13 +416,16 @@ struct AllowSplitButton: View {
     }
 }
 
-struct TrustSubmenu: View {
-    let toolName: String
+/// 共享菜单体:approval card 的 split-button 和 sidebar 行级 trust popover 都用这份。
+/// 只有 intro / footer 的行文不同,按钮行 / 键盘快捷键 / 视觉强调(10min 居中高亮)完全一致。
+struct TrustPickerMenu: View {
+    let introCopy: LocalizedStringKey
+    let footerCopy: LocalizedStringKey
     let onSelect: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Allow & auto-trust")
+            Text(introCopy)
                 .font(.system(size: 10, weight: .bold))
                 .kerning(0.8)
                 .textCase(.uppercase)
@@ -456,7 +463,7 @@ struct TrustSubmenu: View {
 
             Divider().padding(.horizontal, 2).padding(.vertical, 2)
 
-            Text("During this window, all \(toolName) tool calls from this session auto-approve.")
+            Text(footerCopy)
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, 10)
@@ -465,5 +472,19 @@ struct TrustSubmenu: View {
         }
         .frame(width: 230)
         .padding(4)
+    }
+}
+
+/// 审批卡片里那个版本:intro = "Allow & auto-trust"(含义:允许本次并开窗),footer 提及工具名。
+struct TrustSubmenu: View {
+    let toolName: String
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        TrustPickerMenu(
+            introCopy: "Allow & auto-trust",
+            footerCopy: "During this window, all \(toolName) tool calls from this session auto-approve.",
+            onSelect: onSelect
+        )
     }
 }

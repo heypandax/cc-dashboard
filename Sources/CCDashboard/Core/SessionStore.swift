@@ -14,13 +14,16 @@ actor SessionStore {
     /// 后者在 macOS 26 cooperative pool 上触发 swift_task_dealloc abort。不要换。
     private let now: @Sendable () -> Date
     private let delay: @Sendable (UInt64) async -> Void
+    private let aliasStore: AliasStore
 
     init(
+        aliasStore: AliasStore = AliasStore(),
         now: @Sendable @escaping () -> Date = { Date() },
         delay: @Sendable @escaping (UInt64) async -> Void = { nanos in
             try? await Task.sleep(nanoseconds: nanos)
         }
     ) {
+        self.aliasStore = aliasStore
         self.now = now
         self.delay = delay
     }
@@ -28,11 +31,13 @@ actor SessionStore {
     // MARK: Session lifecycle
 
     func upsertSession(id: String, cwd: String, transcriptPath: String?) {
+        let resolvedAlias = aliasStore.get(cwd: cwd)
         if var existing = sessions[id] {
             existing.cwd = cwd
             existing.lastActivityAt = now()
             existing.status = .running
             if let transcriptPath { existing.transcriptPath = transcriptPath }
+            existing.alias = resolvedAlias   // cwd 可能在 update 时变,alias 跟着走
             sessions[id] = existing
             broadcast(.sessionUpsert(existing))
         } else {
@@ -45,7 +50,8 @@ actor SessionStore {
                 transcriptPath: transcriptPath,
                 lastTool: nil,
                 lastNotification: nil,
-                autoAllowUntil: nil
+                autoAllowUntil: nil,
+                alias: resolvedAlias
             )
             sessions[id] = state
             broadcast(.sessionUpsert(state))
@@ -64,7 +70,8 @@ actor SessionStore {
             transcriptPath: nil,
             lastTool: nil,
             lastNotification: nil,
-            autoAllowUntil: nil
+            autoAllowUntil: nil,
+            alias: aliasStore.get(cwd: cwd ?? "")
         )
         if let cwd { s.cwd = cwd }
         if let status { s.status = status }
@@ -181,6 +188,32 @@ actor SessionStore {
 
     func allApprovals() -> [ApprovalRequest] {
         Array(pendingApprovals.values).sorted { $0.createdAt < $1.createdAt }
+    }
+
+    // MARK: - Alias
+
+    /// 按 cwd 存 alias。同一 cwd 下所有 session 一并更新 —— cwd-binding 的语义,
+    /// 换言之:重命名"这个项目",不是重命名"这个 pid"。
+    /// alias 为 nil 或空串 → 清除。AliasStore 内部做 trim / 截长。
+    func setSessionAlias(cwd: String, alias: String?) {
+        guard !cwd.isEmpty else { return }
+        aliasStore.set(cwd: cwd, alias: alias)
+        let resolved = aliasStore.get(cwd: cwd)   // 让 trim / empty→nil 的规范化在 AliasStore 收敛
+
+        for (id, var s) in sessions where s.cwd == cwd {
+            s.alias = resolved
+            sessions[id] = s
+            broadcast(.sessionUpsert(s))
+            broadcast(.sessionAliasChanged(sessionId: id, alias: resolved))
+        }
+        Telemetry.track(.sessionRenamed, [.cleared: resolved == nil ? 1 : 0])
+    }
+
+    /// HTTP / UI 层入口:给 sessionId,内部查到 cwd 再走 cwd-binding 语义。
+    /// session 已 purge(10s grace 过了)→ 静默 no-op。
+    func setSessionAliasById(sessionID: String, alias: String?) {
+        guard let cwd = sessions[sessionID]?.cwd else { return }
+        setSessionAlias(cwd: cwd, alias: alias)
     }
 
     // MARK: Event stream (WebSocket subscribers)

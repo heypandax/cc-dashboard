@@ -20,6 +20,8 @@ struct SessionState: Codable, Sendable, Identifiable {
     var lastTool: String?
     var lastNotification: String?
     var autoAllowUntil: Date?
+    /// 用户自定义显示名。持久化源是 AliasStore(按 cwd),这里的字段只是广播/查询时的投影。
+    var alias: String?
 }
 
 // MARK: - Approval
@@ -142,12 +144,13 @@ enum DashboardEvent: Sendable {
     case approvalResolve(String)
     case autoAllowSet(sessionId: String, until: Date)
     case autoAllowCleared(sessionId: String)
+    case sessionAliasChanged(sessionId: String, alias: String?)
     case snapshot(sessions: [SessionState], approvals: [ApprovalRequest])
 }
 
 extension DashboardEvent: Encodable {
     private enum CodingKeys: String, CodingKey {
-        case type, session, sessionId, approval, approvalId, sessions, approvals, until
+        case type, session, sessionId, approval, approvalId, sessions, approvals, until, alias
     }
 
     func encode(to encoder: Encoder) throws {
@@ -175,6 +178,10 @@ extension DashboardEvent: Encodable {
         case .autoAllowCleared(let sid):
             try c.encode("auto_allow_cleared", forKey: .type)
             try c.encode(sid, forKey: .sessionId)
+        case .sessionAliasChanged(let sid, let alias):
+            try c.encode("session_alias_changed", forKey: .type)
+            try c.encode(sid, forKey: .sessionId)
+            try c.encodeIfPresent(alias, forKey: .alias)
         case .snapshot(let sessions, let approvals):
             try c.encode("snapshot", forKey: .type)
             try c.encode(sessions, forKey: .sessions)

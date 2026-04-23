@@ -74,6 +74,21 @@ struct DashboardHTTPServer: Sendable {
             return HookAckResponse(ok: true)
         }
 
+        // Alias: cwd-binding 在 store 侧做,route 按 sessionId 暴露(cwd 走 URL 不友好)。
+        // body 的 alias 为 null / 空串 → 清除。
+        router.put("/sessions/:id/alias") { request, context -> HookAckResponse in
+            let sid = try context.parameters.require("id")
+            let body = try await request.decode(as: AliasRequest.self, context: context)
+            await store.setSessionAliasById(sessionID: sid, alias: body.alias)
+            return HookAckResponse(ok: true)
+        }
+
+        router.delete("/sessions/:id/alias") { _, context -> HookAckResponse in
+            let sid = try context.parameters.require("id")
+            await store.setSessionAliasById(sessionID: sid, alias: nil)
+            return HookAckResponse(ok: true)
+        }
+
         router.get("/sessions") { _, _ -> [SessionState] in
             await store.allSessions()
         }
@@ -125,9 +140,15 @@ struct HookAckResponse: Codable, ResponseEncodable, Sendable {
     let ok: Bool
 }
 
+/// PUT /sessions/:id/alias body。alias 为 nil(JSON null / 缺字段)或空串视作清空。
+struct AliasRequest: Codable, Sendable {
+    let alias: String?
+}
+
 extension HookOutput: ResponseEncodable {}
 extension SessionState: ResponseEncodable {}
 extension ApprovalRequest: ResponseEncodable {}
 extension HookInput: ResponseCodable {}
 extension DecisionRequest: ResponseCodable {}
 extension TrustRequest: ResponseCodable {}
+extension AliasRequest: ResponseCodable {}

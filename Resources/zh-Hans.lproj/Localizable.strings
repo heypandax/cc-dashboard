@@ -47,3 +47,10 @@
 "Claude Code · Approval needed" = "Claude Code · 需要审批";
 "Claude Code · Session done" = "Claude Code · 会话结束";
 "Tool: %@" = "工具: %@";
+
+/* 会话行右键菜单 + 重命名 */
+"Rename…" = "重命名…";
+"Copy session ID" = "复制会话 ID";
+"Name this session" = "为会话命名";
+"Start trust window" = "开启信任窗口";
+"Start auto-trust window" = "开启自动信任窗口";

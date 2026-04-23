@@ -35,7 +35,8 @@ final class Notifier {
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Claude Code · Session done")
         let folder = URL(fileURLWithPath: session.cwd).lastPathComponent
-        content.body = "\(String(session.id.prefix(8))) — \(folder)"
+        let name = (session.alias?.isEmpty == false) ? session.alias! : String(session.id.prefix(8))
+        content.body = "\(name) — \(folder)"
         content.sound = .default
 
         let request = UNNotificationRequest(

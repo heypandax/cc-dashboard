@@ -128,4 +128,122 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(sessions.count, 1)
         XCTAssertEqual(sessions.first?.id, "pre-existing")
     }
+
+    // MARK: - Alias: 新 session 自动套用已存 alias
+
+    func testUpsertAutoAppliesStoredAlias() async throws {
+        let defaults = isolatedDefaults()
+        let aliasStore = AliasStore(defaults: defaults)
+        aliasStore.set(cwd: "/repo", alias: "My Project")
+
+        let store = SessionStore(aliasStore: aliasStore)
+        await store.upsertSession(id: "s1", cwd: "/repo", transcriptPath: nil)
+
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.first?.alias, "My Project")
+    }
+
+    // MARK: - Alias: setSessionAlias 既写盘又广播,且顺序为 upsert 先、aliasChanged 后
+
+    func testSetSessionAliasBroadcastsInOrderAndPersists() async throws {
+        let defaults = isolatedDefaults()
+        let aliasStore = AliasStore(defaults: defaults)
+        let store = SessionStore(aliasStore: aliasStore)
+
+        await store.upsertSession(id: "s1", cwd: "/repo", transcriptPath: nil)
+
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()   // snapshot
+
+        await store.setSessionAlias(cwd: "/repo", alias: "Renamed")
+
+        guard case .sessionUpsert(let s) = await iter.next() else {
+            return XCTFail("expected .sessionUpsert first")
+        }
+        XCTAssertEqual(s.alias, "Renamed")
+
+        guard case .sessionAliasChanged(let sid, let alias) = await iter.next() else {
+            return XCTFail("expected .sessionAliasChanged second")
+        }
+        XCTAssertEqual(sid, "s1")
+        XCTAssertEqual(alias, "Renamed")
+
+        XCTAssertEqual(aliasStore.get(cwd: "/repo"), "Renamed")
+    }
+
+    // MARK: - Alias: 同 cwd 下多 session 一并更新
+
+    func testSetSessionAliasUpdatesAllSessionsSharingCwd() async throws {
+        let defaults = isolatedDefaults()
+        let store = SessionStore(aliasStore: AliasStore(defaults: defaults))
+
+        await store.upsertSession(id: "s1", cwd: "/repo", transcriptPath: nil)
+        await store.upsertSession(id: "s2", cwd: "/repo", transcriptPath: nil)
+
+        await store.setSessionAlias(cwd: "/repo", alias: "Shared")
+
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.count, 2)
+        XCTAssertTrue(sessions.allSatisfy { $0.alias == "Shared" })
+    }
+
+    // MARK: - Alias: 清空(空串 / nil 都走同一条语义)→ aliasChanged payload 为 nil
+
+    func testClearAliasEmitsNilInEvent() async throws {
+        let defaults = isolatedDefaults()
+        let aliasStore = AliasStore(defaults: defaults)
+        aliasStore.set(cwd: "/repo", alias: "to-be-cleared")
+
+        let store = SessionStore(aliasStore: aliasStore)
+        await store.upsertSession(id: "s1", cwd: "/repo", transcriptPath: nil)
+
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()   // snapshot
+
+        // 空串也应该清空
+        await store.setSessionAlias(cwd: "/repo", alias: "")
+
+        _ = await iter.next()   // sessionUpsert
+        guard case .sessionAliasChanged(_, let alias) = await iter.next() else {
+            return XCTFail("expected .sessionAliasChanged")
+        }
+        XCTAssertNil(alias)
+        XCTAssertNil(aliasStore.get(cwd: "/repo"))
+    }
+
+    // MARK: - Alias: setSessionAliasById 路径找得到 cwd
+
+    func testSetSessionAliasByIdResolvesCwd() async throws {
+        let defaults = isolatedDefaults()
+        let aliasStore = AliasStore(defaults: defaults)
+        let store = SessionStore(aliasStore: aliasStore)
+
+        await store.upsertSession(id: "s1", cwd: "/resolved", transcriptPath: nil)
+        await store.setSessionAliasById(sessionID: "s1", alias: "by id")
+
+        XCTAssertEqual(aliasStore.get(cwd: "/resolved"), "by id")
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.first?.alias, "by id")
+    }
+
+    // MARK: - Alias: setSessionAliasById 对 unknown session id 静默
+
+    func testSetSessionAliasByIdIgnoresUnknownSession() async throws {
+        let defaults = isolatedDefaults()
+        let aliasStore = AliasStore(defaults: defaults)
+        let store = SessionStore(aliasStore: aliasStore)
+
+        await store.setSessionAliasById(sessionID: "does-not-exist", alias: "oops")
+
+        XCTAssertTrue(aliasStore.load().isEmpty, "unknown sessionId 不应触发任何写入")
+    }
+
+    // MARK: - 辅助
+
+    private func isolatedDefaults() -> UserDefaults {
+        let name = "test.store.\(UUID().uuidString)"
+        return UserDefaults(suiteName: name)!
+    }
 }
