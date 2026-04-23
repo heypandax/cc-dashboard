@@ -9,6 +9,16 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Changed
+- Starting a trust window now also approves any already-pending approvals
+  for that session, matching the user intent that "I trust this session"
+  should cover the request currently waiting, not just future ones.
+
+### Fixed
+- Row-level trust popover no longer vanishes when the cursor moves from
+  the hover-revealed clock button onto the popover options. The button
+  now stays mounted while the popover is open.
+
 ## [0.1.2] — 2026-04-23
 
 ### Added

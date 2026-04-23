@@ -166,6 +166,20 @@ actor SessionStore {
         // producer 直接上报 authoritative minutes —— 不从 Dashboard 端反推 until→minutes(可能 off-by-one)
         Telemetry.track(.autoAllowSet, [.minutes: minutes])
 
+        // "开窗之前"这一刻还挂着的同 session pending 审批,和窗口内未来的调用同等对待 —— 一并 allow。
+        // 不 resume 的话用户会体验到"我已经点了信任,为啥卡着那笔还要手动同意一次"。
+        let drained = pendingApprovals.filter { $0.value.sessionId == sessionID }.keys
+        for id in drained {
+            guard let cont = pendingContinuations.removeValue(forKey: id) else { continue }
+            pendingApprovals.removeValue(forKey: id)
+            cont.resume(returning: .allow)
+            broadcast(.approvalResolve(id))
+        }
+        if !drained.isEmpty {
+            touchSession(id: sessionID, status: .running)
+            Log.autoAllow.notice("drained \(drained.count) pending approval(s) session=\(sessionID, privacy: .public)")
+        }
+
         autoAllowExpireTasks[sessionID]?.cancel()
         autoAllowExpireTasks[sessionID] = Task { [weak self] in
             guard let self else { return }

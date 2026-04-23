@@ -183,7 +183,9 @@ struct SessionRow: View {
                     TrustBadge(expiresAt: until) {
                         dashboard.clearTrust(sessionID: session.id)
                     }
-                } else if hovered {
+                } else if hovered || trustPopoverOpen {
+                    // popover 打开期间按钮必须保留,否则鼠标移向 popover 的瞬间穿出 row hover 区 →
+                    // hovered=false → button unmount → popover attached-view 消失 → popover 关闭。
                     Button { trustPopoverOpen = true } label: {
                         Image(systemName: "clock.badge.checkmark")
                             .font(.system(size: 11, weight: .semibold))

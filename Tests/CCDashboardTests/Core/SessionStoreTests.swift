@@ -85,6 +85,63 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertTrue(afterResolve.isEmpty)
     }
 
+    // MARK: - setAutoAllow 排空同 session 的 pending 审批
+
+    func testSetAutoAllowResolvesAlreadyPendingApprovals() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+
+        // 两笔 pending(来自同一 session)在信任开窗之前已排队
+        let req1 = ApprovalRequest(
+            id: "req-a", sessionId: "s1", toolName: "Bash",
+            toolInput: [:], cwd: "/", createdAt: Date()
+        )
+        let req2 = ApprovalRequest(
+            id: "req-b", sessionId: "s1", toolName: "Edit",
+            toolInput: [:], cwd: "/", createdAt: Date()
+        )
+        async let d1 = store.requestApproval(req1)
+        async let d2 = store.requestApproval(req2)
+        _ = await pollForApproval(store: store)
+        // 等两笔都入队
+        while await store.allApprovals().count < 2 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        // 开 10 分钟信任窗,同 session 那两笔必须被 allow 放行
+        await store.setAutoAllow(sessionID: "s1", minutes: 10)
+        let r1 = await d1
+        let r2 = await d2
+        XCTAssertEqual(r1, .allow)
+        XCTAssertEqual(r2, .allow)
+
+        let stillPending = await store.allApprovals()
+        XCTAssertTrue(stillPending.isEmpty, "信任开窗后不应还有同 session 的 pending")
+    }
+
+    func testSetAutoAllowDoesNotTouchOtherSessionsApprovals() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.upsertSession(id: "s2", cwd: "/", transcriptPath: nil)
+
+        let reqOther = ApprovalRequest(
+            id: "req-other", sessionId: "s2", toolName: "Bash",
+            toolInput: [:], cwd: "/", createdAt: Date()
+        )
+        async let decisionOther = store.requestApproval(reqOther)
+        _ = await pollForApproval(store: store)
+
+        await store.setAutoAllow(sessionID: "s1", minutes: 10)
+
+        let pending = await store.allApprovals()
+        XCTAssertEqual(pending.count, 1)
+        XCTAssertEqual(pending.first?.sessionId, "s2", "另一个 session 的 pending 不应受影响")
+
+        // cleanup
+        await store.resolveApproval(id: "req-other", decision: .deny, reason: nil, trustMinutes: nil)
+        _ = await decisionOther
+    }
+
     // MARK: - trustMinutes > 0 后续请求命中 auto-allow
 
     func testTrustMinutesEnablesSubsequentAutoAllow() async throws {
