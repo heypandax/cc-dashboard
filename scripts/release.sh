@@ -1,11 +1,16 @@
 #!/bin/bash
-# cc-dashboard 发版入口。单命令跑完:bump 版本 → notarize build → 写 appcast + cask →
-# commit + tag + push → GitHub Release + DMG 上传 → 同步 tap 仓 → 验证 Pages。
+# cc-dashboard 发版入口。单命令跑完:bump 版本 → 转 CHANGELOG → notarize build →
+# 写 appcast + cask → commit + tag + push → GitHub Release + DMG 上传 → 同步 tap 仓 → 验证 Pages。
 #
 # 用法:
-#   ./scripts/release.sh 0.1.1                   # 正式发版
-#   ./scripts/release.sh 0.1.1 --dry-run         # 跑到 Step 6(本地 tag),不 push / 不建 Release
-#   ./scripts/release.sh 0.1.1 --skip-notarize   # 跳 notarize(仅调试脚本,不产可分发 DMG)
+#   ./scripts/release.sh                         # 自动 bump patch (0.1.2 → 0.1.3)
+#   ./scripts/release.sh 0.2.0                   # 手动指定(minor / major 必须手动)
+#   ./scripts/release.sh 0.1.3 --dry-run         # 跑到 Step 6(本地 tag),不 push / 不建 Release
+#   ./scripts/release.sh --skip-notarize         # 跳 notarize + 自动 bump(仅调试脚本,不产可分发 DMG)
+#
+# CHANGELOG 约定:
+#   开发期间把条目加到 `## [Unreleased]` 下。发版时本脚本自动把 [Unreleased] 标题后面
+#   插入新的 `## [X.Y.Z] — YYYY-MM-DD` section,原 [Unreleased] 下的条目自然归到新版本。
 #
 # 前置一次性:
 #   brew install gh && gh auth login
@@ -41,14 +46,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$VERSION" ]]; then
-    echo "Usage: $0 <version> [--dry-run] [--skip-notarize]" >&2
-    echo "Example: $0 0.1.1" >&2
-    exit 1
-fi
-
 step() { echo ""; echo "==> [Step $1] $2"; }
 fail() { echo "" >&2; echo "Error: $*" >&2; exit 1; }
+
+# 无参数 → 读 Info.plist 当前版本,patch+1。minor/major 必须手动指定。
+if [[ -z "$VERSION" ]]; then
+    CUR=$(plutil -extract CFBundleShortVersionString raw Info.plist 2>/dev/null) \
+        || fail "无法读取 Info.plist 的 CFBundleShortVersionString"
+    if [[ "$CUR" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+        VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
+        echo "==> 无参自动 bump patch: $CUR → $VERSION"
+        echo "    (minor/major 请显式: $0 <X.Y.Z>)"
+    else
+        fail "当前版本 '$CUR' 不是 semver,无法自动 bump。请显式: $0 <X.Y.Z>"
+    fi
+fi
 
 # ---------- preflight ----------
 step 0 "preflight checks"
@@ -88,9 +100,45 @@ plutil -replace CFBundleShortVersionString -string "$VERSION" Info.plist
 plutil -replace CFBundleVersion -string "$NEW_BUILD" Info.plist
 echo "CFBundleShortVersionString=$VERSION, CFBundleVersion=$NEW_BUILD (was $OLD_BUILD)"
 
-# ---------- Step 2: commit version bump ----------
+# ---------- Step 1.5: promote CHANGELOG [Unreleased] → [X] ----------
+# [Unreleased] 标题保留(下一版还会用),下面插入新的 [X] — DATE section。
+# 开发期间加在 [Unreleased] 下的条目现在自然归属 [X]。
+# 底部的 compare-link 也一并更新,加上 [X] 的 release tag 链接。
+step 1.5 "promote CHANGELOG [Unreleased] → [$VERSION]"
+if [[ -f CHANGELOG.md ]] && grep -q '^## \[Unreleased\]$' CHANGELOG.md; then
+    TODAY=$(date +%F)
+    awk -v v="$VERSION" -v d="$TODAY" '
+        !done && /^## \[Unreleased\]$/ {
+            print; print ""; print "## [" v "] — " d; done=1; next
+        }
+        { print }
+    ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
+
+    # compare-link:[Unreleased]: .../compare/v<old>...HEAD  →  .../compare/v<new>...HEAD
+    # 并在下一行插入  [<new>]: .../releases/tag/v<new>
+    python3 - "$VERSION" CHANGELOG.md <<'PY'
+import re, sys, pathlib
+version = sys.argv[1]
+path = pathlib.Path(sys.argv[2])
+text = path.read_text()
+def repl(m):
+    base = m.group(1)
+    return (f"[Unreleased]: {base}compare/v{version}...HEAD\n"
+            f"[{version}]: {base}releases/tag/v{version}")
+new = re.sub(r"^\[Unreleased\]: (.*?)compare/v[0-9.]+\.\.\.HEAD$",
+             repl, text, count=1, flags=re.M)
+path.write_text(new)
+PY
+
+    echo "CHANGELOG: [Unreleased] → [$VERSION] — $TODAY"
+else
+    echo "(CHANGELOG.md 缺失或没有 [Unreleased] section — 跳过)"
+fi
+
+# ---------- Step 2: commit version bump + CHANGELOG ----------
 step 2 "commit version bump"
 git add Info.plist
+[[ -f CHANGELOG.md ]] && git add CHANGELOG.md
 git commit -m "Bump version to $VERSION"
 
 # ---------- Step 3: build + (optional) notarize ----------

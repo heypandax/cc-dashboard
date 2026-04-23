@@ -132,11 +132,38 @@ Sources/CCDashboard/
 
 ## Release
 
-GitHub Actions `release.yml` (workflow_dispatch with version input) is the
-canonical path: it bumps `Info.plist`, builds signed + notarized DMG on
-macos-26, updates `docs/appcast.xml` (Sparkle) and
-`homebrew-cask/Casks/cc-dashboard.rb`, tags, creates a GitHub release, and
-syncs the tap at `heypandax/homebrew-cc-dashboard`. Do not manually edit the
+Two entry points — pick by who's driving.
+
+**Local path (common):** `./scripts/release.sh`
+- No arg → auto-bumps the patch digit (reads `CFBundleShortVersionString`
+  from `Info.plist`, adds 1 to the last digit). Use this for the vast
+  majority of releases.
+- With arg → `./scripts/release.sh 0.2.0` or `1.0.0`. **Minor and major
+  bumps must be passed explicitly** — the script will never promote `minor`
+  or `major` on its own.
+- Flags: `--dry-run` stops after local tag (no push / release); `--skip-notarize`
+  skips Apple notarization (debug only, produces unshippable DMG).
+
+**CI path:** GitHub Actions `release.yml` (workflow_dispatch with version
+input). Used when release is driven from the web UI instead of a local
+machine. Does not auto-bump or auto-transform CHANGELOG — caller must
+pass full `X.Y.Z` and the CHANGELOG must already be committed with
+`[X.Y.Z]` as a section.
+
+**CHANGELOG workflow.** During feature work, add user-visible changes
+under `## [Unreleased]` in `CHANGELOG.md`. At release time,
+`scripts/release.sh` automatically promotes that section — it inserts
+`## [X.Y.Z] — YYYY-MM-DD` immediately after the `[Unreleased]` heading, so
+the entries you wrote during development naturally become the new
+version's changelog. The bottom-of-file compare link for `[Unreleased]`
+is retargeted to the new tag and a fresh `[X.Y.Z]: .../releases/tag/vX.Y.Z`
+line is inserted. Plumbing-only changes (CI tweaks, refactors with no
+behavior change) don't need an entry.
+
+**What both paths do after the version bump:** build signed + notarized
+DMG on macos-26, regenerate `docs/appcast.xml` (Sparkle) and
+`homebrew-cask/Casks/cc-dashboard.rb`, tag, create a GitHub release, sync
+the tap at `heypandax/homebrew-cc-dashboard`. Do not manually edit the
 appcast or cask; `scripts/update_appcast.sh` regenerates them.
 
 ## Commit authoring — hard rules
