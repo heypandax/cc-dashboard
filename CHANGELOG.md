@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-04-23
+
 ### Added
 - Rename sessions inline (double-click the name) or via the row context menu.
   Aliases are keyed by cwd and persisted in `UserDefaults` under
@@ -65,5 +67,6 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.2
 [0.1.0]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.0
