@@ -170,13 +170,15 @@ struct MenuApprovalCard: View {
                     }
                 } label: {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(CC.mintInk)
+                        .frame(minWidth: 16, minHeight: 16)
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
-                .padding(.horizontal, 6).padding(.vertical, 4)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .contentShape(Rectangle())
                 .background(CC.mint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(CC.mint.opacity(0.4), lineWidth: 0.5))
 

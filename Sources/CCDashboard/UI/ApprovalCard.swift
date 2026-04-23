@@ -399,10 +399,12 @@ struct AllowSplitButton: View {
 
             Button { submenuOpen.toggle() } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(CC.inkOnMint)
-                    .padding(.horizontal, 9)
+                    .frame(minWidth: 18, minHeight: 18)   // 保证 icon 居中,避免细扁
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 7)
+                    .contentShape(Rectangle())             // 整个 padding 区都可点,不只是 image 实际像素
             }
             .buttonStyle(.plain)
             .popover(isPresented: $submenuOpen, arrowEdge: .bottom) {
@@ -456,6 +458,7 @@ struct TrustPickerMenu: View {
                         mins == 10 ? CC.mint.opacity(0.12) : Color.clear,
                         in: RoundedRectangle(cornerRadius: 5)
                     )
+                    .contentShape(Rectangle())   // 否则透明背景的行 Spacer 区点不动
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(key, modifiers: .command)

@@ -18,6 +18,16 @@ Versioning][semver].
 - Row-level trust popover no longer vanishes when the cursor moves from
   the hover-revealed clock button onto the popover options. The button
   now stays mounted while the popover is open.
+- Enlarged the chevron hit area next to the "Allow" button in both the
+  approval card (`46×32pt`, was `~28×24pt`) and the menu-bar popover
+  (`36×28pt`, was `~22×18pt`). Full padding region is now tap-active via
+  `contentShape`.
+- `TrustPickerMenu` trust-duration rows (2 / 10 / 30 min) now accept
+  clicks across the full row width. Previously only the icon + text +
+  `⌘N` shortcut hint were hit-active; the middle `Spacer` region and
+  transparent padding swallowed clicks on the "2 min" and "30 min" rows
+  (the 10 min row worked because its highlighted background was a
+  non-transparent hit surface).
 
 ## [0.1.2] — 2026-04-23
 
