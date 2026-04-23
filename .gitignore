@@ -5,5 +5,6 @@ dist/
 *.app
 ANNOUNCE.md
 .DS_Store
-.claude/
+.claude/settings.local.json
+.claude/*.local.json
 GoogleService-Info.plist
