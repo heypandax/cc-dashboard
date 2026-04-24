@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-04-24
+
 ### Added
 - Custom trust duration. Both the approval card "Allow ▾" popover and the
   sidebar hover clock popover now include an inline minutes field next to
@@ -96,7 +98,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.4
 [0.1.3]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.3
 [0.1.2]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.2
 [0.1.0]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.0
