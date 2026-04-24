@@ -93,12 +93,13 @@ final class Dashboard {
         }
     }
 
-    func decide(approvalID: String, decision: ApprovalDecision, trustMinutes: Int? = nil) {
+    func decide(approvalID: String, decision: ApprovalDecision, trustMinutes: Int? = nil, customTrust: Bool = false) {
         // store.resolveApproval 是幂等的 —— UI entry 已消失也继续调(比如快速双击)
         if let a = approvals.first(where: { $0.id == approvalID }) {
             Telemetry.track(.approvalDecided, approvalParams(a).merging([
                 .decision:     decision.rawValue,
                 .trustMinutes: trustMinutes ?? 0,
+                .customTrust:  customTrust ? 1 : 0,
             ]) { $1 })
         }
         Task { await store.resolveApproval(id: approvalID, decision: decision, trustMinutes: trustMinutes) }

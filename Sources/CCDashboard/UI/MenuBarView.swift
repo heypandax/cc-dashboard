@@ -168,6 +168,13 @@ struct MenuApprovalCard: View {
                             dashboard.decide(approvalID: approval.id, decision: .allow, trustMinutes: mins)
                         }
                     }
+                    Divider()
+                    Button("Custom duration…") {
+                        if let mins = promptCustomTrustMinutes() {
+                            dashboard.decide(approvalID: approval.id, decision: .allow,
+                                             trustMinutes: mins, customTrust: true)
+                        }
+                    }
                 } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .semibold))

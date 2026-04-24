@@ -9,6 +9,13 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Added
+- Custom trust duration. Both the approval card "Allow ▾" popover and the
+  sidebar hover clock popover now include an inline minutes field next to
+  the 2 / 10 / 30 presets — type any value up to 24 h and press Return.
+  The session-row right-click menu and the menu-bar approval card get a
+  "Custom duration…" item that opens a small dialog for the same purpose.
+
 ## [0.1.3] — 2026-04-23
 
 ### Changed

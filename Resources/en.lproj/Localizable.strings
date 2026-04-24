@@ -55,3 +55,11 @@
 "Name this session" = "Name this session";
 "Start trust window" = "Start trust window";
 "Start auto-trust window" = "Start auto-trust window";
+
+/* Custom trust duration */
+"Custom" = "Custom";
+"min" = "min";
+"Custom duration…" = "Custom duration…";
+"Custom trust duration" = "Custom trust duration";
+"Enter how many minutes to auto-approve tool calls (1–%lld)." = "Enter how many minutes to auto-approve tool calls (1–%lld).";
+"Cancel" = "Cancel";

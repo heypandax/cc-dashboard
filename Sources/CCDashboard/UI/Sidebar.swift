@@ -148,7 +148,7 @@ struct SessionNameField: View {
 /// Row hover 时出现的小时钟按钮,点击弹 TrustPickerMenu —— 非审批路径直接给 session 开窗。
 /// intro / footer 跟 approval 卡片里那一版不同:不是"允许这次 + 开窗",而是纯"开窗"。
 struct RowTrustMenu: View {
-    let onSelect: (Int) -> Void
+    let onSelect: (Int, Bool) -> Void
 
     var body: some View {
         TrustPickerMenu(
@@ -157,6 +157,26 @@ struct RowTrustMenu: View {
             onSelect: onSelect
         )
     }
+}
+
+/// 右键菜单 / 菜单栏 popover 里都是 SwiftUI 原生 `Menu`(背后是 NSMenu),不支持 TextField。
+/// 所以 Custom 路径在这两个表面走 NSAlert 弹窗。返回值 nil 表示用户取消或输入非法。
+@MainActor
+func promptCustomTrustMinutes() -> Int? {
+    let alert = NSAlert()
+    alert.messageText = String(localized: "Custom trust duration")
+    alert.informativeText = String(localized: "Enter how many minutes to auto-approve tool calls (1–\(trustMinuteCustomMax)).")
+    alert.alertStyle = .informational
+    alert.addButton(withTitle: String(localized: "Start trust window"))
+    alert.addButton(withTitle: String(localized: "Cancel"))
+
+    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+    field.placeholderString = "15"
+    alert.accessoryView = field
+    alert.window.initialFirstResponder = field
+
+    guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+    return parseCustomMinutes(field.stringValue)
 }
 
 struct SessionRow: View {
@@ -194,9 +214,9 @@ struct SessionRow: View {
                     .buttonStyle(.plain)
                     .help("Start auto-trust window")
                     .popover(isPresented: $trustPopoverOpen, arrowEdge: .bottom) {
-                        RowTrustMenu { mins in
+                        RowTrustMenu { mins, isCustom in
                             dashboard.trustSession(sessionID: session.id, minutes: mins)
-                            Telemetry.track(.trustFromRow, [.minutes: mins])
+                            Telemetry.track(.trustFromRow, [.minutes: mins, .customTrust: isCustom ? 1 : 0])
                             trustPopoverOpen = false
                         }
                     }
@@ -236,7 +256,14 @@ struct SessionRow: View {
                 ForEach(trustMinuteOptions, id: \.self) { mins in
                     Button("Allow for \(mins) min") {
                         dashboard.trustSession(sessionID: session.id, minutes: mins)
-                        Telemetry.track(.trustFromRow, [.minutes: mins])
+                        Telemetry.track(.trustFromRow, [.minutes: mins, .customTrust: 0])
+                    }
+                }
+                Divider()
+                Button("Custom duration…") {
+                    if let mins = promptCustomTrustMinutes() {
+                        dashboard.trustSession(sessionID: session.id, minutes: mins)
+                        Telemetry.track(.trustFromRow, [.minutes: mins, .customTrust: 1])
                     }
                 }
             }

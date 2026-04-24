@@ -19,6 +19,7 @@ enum Telemetry {
     enum Key: String {
         case tool, risk, decision, count, minutes, version, phase, cleared
         case trustMinutes = "trust_minutes"
+        case customTrust  = "custom_trust"
     }
 
     /// UserDefaults key。命令行 opt-out:

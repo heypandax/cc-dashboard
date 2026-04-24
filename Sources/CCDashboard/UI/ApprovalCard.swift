@@ -17,6 +17,18 @@ enum RiskLevel: String {
 /// Auto-trust 窗口可选时长(分钟),ApprovalRow popover 和菜单栏卡片的 Menu 都用这份。
 let trustMinuteOptions: [Int] = [2, 10, 30]
 
+/// 自定义信任时长的合法上界(分钟)。1440 = 24 小时。再高几乎肯定是误输入,
+/// 也让 `Task.sleep` 的纳秒参数远离 UInt64 溢出区。UI 层 clamp,SessionStore 不做二次校验。
+let trustMinuteCustomMax: Int = 1440
+
+/// 把用户输入(TextField / NSTextField)转成合法分钟数。非空但非法 → nil。
+/// popover 里的 inline TextField 和 context-menu / 菜单栏里的 NSAlert 两条路径都经过这里。
+func parseCustomMinutes(_ text: String) -> Int? {
+    let trimmed = text.trimmingCharacters(in: .whitespaces)
+    guard let n = Int(trimmed), n > 0 else { return nil }
+    return min(n, trustMinuteCustomMax)
+}
+
 /// 粗启发:基于 toolName + command/file_path 关键词判断写入/破坏性等级。
 /// 不求准,只求"一眼看清有没有嫌疑",给 card 左边缘定一个色。
 func riskLevel(for approval: ApprovalRequest) -> RiskLevel {
@@ -272,8 +284,9 @@ struct ApprovalRow: View {
             HStack(spacing: 8) {
                 AllowSplitButton(
                     onAllow: { dashboard.decide(approvalID: approval.id, decision: .allow) },
-                    onTrust: { mins in
-                        dashboard.decide(approvalID: approval.id, decision: .allow, trustMinutes: mins)
+                    onTrust: { mins, isCustom in
+                        dashboard.decide(approvalID: approval.id, decision: .allow,
+                                         trustMinutes: mins, customTrust: isCustom)
                         submenuOpen = false
                     },
                     submenuOpen: $submenuOpen,
@@ -375,7 +388,7 @@ struct ToolInputPanel: View {
 
 struct AllowSplitButton: View {
     let onAllow: () -> Void
-    let onTrust: (Int) -> Void
+    let onTrust: (Int, Bool) -> Void
     @Binding var submenuOpen: Bool
     let toolName: String
 
@@ -420,10 +433,16 @@ struct AllowSplitButton: View {
 
 /// 共享菜单体:approval card 的 split-button 和 sidebar 行级 trust popover 都用这份。
 /// 只有 intro / footer 的行文不同,按钮行 / 键盘快捷键 / 视觉强调(10min 居中高亮)完全一致。
+/// `onSelect` 的第二个参数标记该次选择是否走了 Custom 分支,便于埋点区分 preset vs. custom。
 struct TrustPickerMenu: View {
     let introCopy: LocalizedStringKey
     let footerCopy: LocalizedStringKey
-    let onSelect: (Int) -> Void
+    let onSelect: (Int, Bool) -> Void
+
+    @State private var customText: String = ""
+    @FocusState private var customFocused: Bool
+
+    private var parsedCustom: Int? { parseCustomMinutes(customText) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -437,7 +456,7 @@ struct TrustPickerMenu: View {
 
             ForEach(Array(trustMinuteOptions.enumerated()), id: \.element) { index, mins in
                 let key = KeyEquivalent(Character("\(index + 1)"))
-                Button { onSelect(mins) } label: {
+                Button { onSelect(mins, false) } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "clock")
                             .font(.system(size: 11))
@@ -464,6 +483,42 @@ struct TrustPickerMenu: View {
                 .keyboardShortcut(key, modifiers: .command)
             }
 
+            HStack(spacing: 10) {
+                Image(systemName: "pencil.and.list.clipboard")
+                    .font(.system(size: 11))
+                Text("Custom").font(.system(size: 13))
+                TextField("", text: $customText, prompt: Text(verbatim: "15"))
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, design: .monospaced).weight(.semibold))
+                    .multilineTextAlignment(.trailing)
+                    .focused($customFocused)
+                    .frame(width: 44)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(
+                        Color.primary.opacity(0.06),
+                        in: RoundedRectangle(cornerRadius: 4)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(customFocused ? CC.mint.opacity(0.6) : Color.primary.opacity(0.12),
+                                          lineWidth: 0.5)
+                    )
+                    .onSubmit(submitCustom)
+                Text("min").font(.system(size: 13)).foregroundStyle(.secondary)
+                Spacer()
+                Button(action: submitCustom) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(parsedCustom == nil ? Color.secondary.opacity(0.4) : CC.mintInk)
+                }
+                .buttonStyle(.plain)
+                .disabled(parsedCustom == nil)
+                .help("Start trust window")
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+
             Divider().padding(.horizontal, 2).padding(.vertical, 2)
 
             Text(footerCopy)
@@ -473,15 +528,21 @@ struct TrustPickerMenu: View {
                 .padding(.bottom, 7).padding(.top, 3)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(width: 230)
+        .frame(width: 250)
         .padding(4)
+    }
+
+    private func submitCustom() {
+        guard let mins = parsedCustom else { return }
+        customText = ""   // 防 Enter + 点击按钮双触发:清空后 parsedCustom → nil,按钮自动禁用
+        onSelect(mins, true)
     }
 }
 
 /// 审批卡片里那个版本:intro = "Allow & auto-trust"(含义:允许本次并开窗),footer 提及工具名。
 struct TrustSubmenu: View {
     let toolName: String
-    let onSelect: (Int) -> Void
+    let onSelect: (Int, Bool) -> Void
 
     var body: some View {
         TrustPickerMenu(

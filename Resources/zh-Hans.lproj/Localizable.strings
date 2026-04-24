@@ -54,3 +54,11 @@
 "Name this session" = "为会话命名";
 "Start trust window" = "开启信任窗口";
 "Start auto-trust window" = "开启自动信任窗口";
+
+/* 自定义信任时长 */
+"Custom" = "自定义";
+"min" = "分钟";
+"Custom duration…" = "自定义时长…";
+"Custom trust duration" = "自定义信任时长";
+"Enter how many minutes to auto-approve tool calls (1–%lld)." = "请输入自动放行工具调用的分钟数(1–%lld)。";
+"Cancel" = "取消";
