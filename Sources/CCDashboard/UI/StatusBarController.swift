@@ -165,9 +165,16 @@ final class StatusBarController {
 
     func openMainWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: MainSceneID.matches) {
-            window.makeKeyAndOrderFront(nil)
+        guard let window = NSApp.windows.first(where: MainSceneID.matches) else {
+            // applicationDidFinishLaunching 已经把窗口对象保留下来了(isReleasedWhenClosed=false),
+            // 走到这分支说明 SwiftUI 内部又出了新机制把它销毁了。打日志,等下次复现再排,
+            // 至少别 silent no-op。
+            Log.lifecycle.error("openMainWindow: no NSWindow matched MainSceneID")
+            return
         }
+        // 每次打开都重新校准位置 —— 用户可能在窗口关着的时候插拔外屏。
+        MainWindowGeometry.clampToVisibleScreens(window)
+        window.makeKeyAndOrderFront(nil)
     }
 }
 

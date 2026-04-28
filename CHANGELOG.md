@@ -9,6 +9,20 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Fixed
+- "Open Main Window" no longer silently does nothing after the user
+  closes the main window via the red traffic light. SwiftUI's default
+  for `Window` scenes was leaving the underlying `NSWindow` released,
+  so the menu-bar action couldn't find anything to bring forward. The
+  app now pins `isReleasedWhenClosed = false` for the main window on
+  launch so the object stays around for the rest of the session.
+- Main window stranded off-screen after a display change. The frame
+  autosave was preserving coordinates from a previously-attached
+  external monitor, so on a single-display setup the window would
+  open at the far left of the visible screen — or, with worse stored
+  values, not appear at all. The window's frame is now clamped to a
+  visible screen on launch and on every "Open Main Window" click.
+
 ## [0.1.6] — 2026-04-28
 
 ### Fixed

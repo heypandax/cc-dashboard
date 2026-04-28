@@ -87,6 +87,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // openMainWindow 再 order-front-回来)。
         DispatchQueue.main.async {
             for w in NSApp.windows where MainSceneID.matches(w) {
+                // SwiftUI 给 Window 的默认 isReleasedWhenClosed 在不同 macOS 版本里
+                // 行为不一致 —— 用户红点关一次后 NSApp.windows 就没它了,菜单栏"打开
+                // 主窗口"再点就 silent no-op。强制 false,保证窗口对象常驻。
+                w.isReleasedWhenClosed = false
+                MainWindowGeometry.clampToVisibleScreens(w)
                 w.orderOut(nil)
             }
         }
@@ -95,5 +100,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // 关掉主窗口不应让 app 退出 —— 状态栏 app 的生命周期独立于窗口。
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+}
+
+/// 处理主窗口的几何 —— SwiftUI `Window` 的 frame autosave 不感知屏幕拓扑变化,
+/// 接过外屏再拔掉就会留下"窗口在 (1716, 29) 而当前屏幕只到 1440"的脏数据,
+/// 表现为打开后窗口贴在屏幕最左边、或者干脆不可见。
+@MainActor
+enum MainWindowGeometry {
+    /// 如果窗口当前 frame 跟任何可见屏幕都不相交,把它居中到主屏。
+    /// 参考 AppKit 的 `NSWindow.constrainFrameRect(_:to:)` 但更激进 —— 那个 API 只夹边,
+    /// 当窗口完全在另一块已断开的屏幕坐标系里时夹不动。
+    static func clampToVisibleScreens(_ window: NSWindow) {
+        let frame = window.frame
+        if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(frame) }) {
+            return
+        }
+        guard let target = NSScreen.main ?? NSScreen.screens.first else { return }
+        let visible = target.visibleFrame
+        let origin = NSPoint(
+            x: visible.midX - frame.width / 2,
+            y: visible.midY - frame.height / 2
+        )
+        window.setFrameOrigin(origin)
     }
 }
