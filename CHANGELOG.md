@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-04-28
+
 ### Fixed
 - "Open Main Window" no longer silently does nothing after closing the
   window. Two root causes, both addressed:
@@ -174,7 +176,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.7
 [0.1.6]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.6
 [0.1.5]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.5
 [0.1.4]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.4
