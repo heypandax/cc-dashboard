@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-04-28
+
 ### Fixed
 - Auto mode no longer blocks on the cc-dashboard menu bar. When Claude
   Code is launched with `--permission-mode bypassPermissions` (or the
@@ -148,7 +150,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.6
 [0.1.5]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.5
 [0.1.4]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.4
 [0.1.3]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.3
