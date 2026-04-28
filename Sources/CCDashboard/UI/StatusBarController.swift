@@ -164,12 +164,18 @@ final class StatusBarController {
     // MARK: - Main window
 
     func openMainWindow() {
+        // 主窗口要顶到前面来,菜单栏弹窗就不该再挡着了 —— pin 状态也照关,
+        // 用户点这个按钮就是主动转场到主窗口,不是 hover 顺手。
+        hidePanel()
         NSApp.activate(ignoringOtherApps: true)
         guard let window = NSApp.windows.first(where: MainSceneID.matches) else {
-            // applicationDidFinishLaunching 已经把窗口对象保留下来了(isReleasedWhenClosed=false),
-            // 走到这分支说明 SwiftUI 内部又出了新机制把它销毁了。打日志,等下次复现再排,
-            // 至少别 silent no-op。
+            // applicationDidFinishLaunching 已经装了 close-guard,正常情况下窗口对象
+            // 必然在 NSApp.windows 里。走到这分支说明 SwiftUI / macOS 又改了 lifecycle,
+            // 列出所有窗口辅助下次定位 matcher 该匹什么。
             Log.lifecycle.error("openMainWindow: no NSWindow matched MainSceneID")
+            for w in NSApp.windows {
+                Log.lifecycle.notice("  remaining win id=\(w.identifier?.rawValue ?? "nil", privacy: .public) title=\"\(w.title, privacy: .public)\" cls=\(String(describing: type(of: w)), privacy: .public)")
+            }
             return
         }
         // 每次打开都重新校准位置 —— 用户可能在窗口关着的时候插拔外屏。

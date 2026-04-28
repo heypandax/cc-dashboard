@@ -7,7 +7,7 @@ struct CCDashboardApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        Window(MainSceneID.title, id: MainSceneID.id) {
+        Window("CC Dashboard", id: MainSceneID.id) {
             MainWindow(dashboard: AppState.shared.dashboard)
         }
         .windowResizability(.contentSize)
@@ -15,16 +15,15 @@ struct CCDashboardApp: App {
 }
 
 /// SwiftUI Window 的配置 + 从 AppKit 侧找回它的 anchor。
-/// appKitIdentifier 是 SwiftUI 内部生成的 NSWindow.identifier(`{id}-AppWindow-1`),
-/// 未来 SwiftUI 换命名规则 title 作为兜底。
+/// 当前 SwiftUI(macOS 14+)把 NSWindow.identifier 直接设成 scene id;若未来又改了
+/// 命名(早期 14 曾用过 `{id}-AppWindow-1`),`StatusBarController.openMainWindow`
+/// 失败分支会列出 NSApp.windows,据此扩展这里的 matcher。
 enum MainSceneID {
     static let id = "main"
-    static let title = "cc-dashboard"
-    static let appKitIdentifier = "main-AppWindow-1"
 
     @MainActor
     static func matches(_ w: NSWindow) -> Bool {
-        w.identifier?.rawValue == appKitIdentifier || w.title == title
+        w.identifier?.rawValue == id
     }
 }
 
@@ -80,17 +79,20 @@ final class AppState {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// 持有主窗口的 close 拦截器,delegate chain 只是 weak 持有,我们得自己 retain。
+    @MainActor private var mainWindowGuard: MainWindowCloseGuard?
+
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         // SwiftUI Window 是唯一 Scene,启动会自动显示。LSUIElement 下用户期望
         // 看见的是状态栏而不是主窗口,在首个 runloop 把它按下去(对象保留,后续
         // openMainWindow 再 order-front-回来)。
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
             for w in NSApp.windows where MainSceneID.matches(w) {
-                // SwiftUI 给 Window 的默认 isReleasedWhenClosed 在不同 macOS 版本里
-                // 行为不一致 —— 用户红点关一次后 NSApp.windows 就没它了,菜单栏"打开
-                // 主窗口"再点就 silent no-op。强制 false,保证窗口对象常驻。
                 w.isReleasedWhenClosed = false
+                let guardObj = MainWindowCloseGuard(forwarding: w.delegate)
+                w.delegate = guardObj
+                self?.mainWindowGuard = guardObj
                 MainWindowGeometry.clampToVisibleScreens(w)
                 w.orderOut(nil)
             }
@@ -100,6 +102,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // 关掉主窗口不应让 app 退出 —— 状态栏 app 的生命周期独立于窗口。
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+}
+
+/// `NSWindowDelegate` 包装 —— 拦截 `windowShouldClose` 改成 `orderOut`,其余
+/// 调用透传给 SwiftUI 原本的 delegate(不能直接覆盖,SwiftUI 用它跟踪 scene 状态)。
+@MainActor
+final class MainWindowCloseGuard: NSObject, NSWindowDelegate {
+    weak var forwarding: NSWindowDelegate?
+
+    init(forwarding: NSWindowDelegate?) {
+        self.forwarding = forwarding
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false  // 阻止 AppKit 真的关掉 —— 否则 SwiftUI 会觉得 scene 关了
+    }
+
+    // NSObject forwarding:任何 NSWindowDelegate 没在这里实现的方法,都转给 SwiftUI
+    // 原来的 delegate(它内部用这些 callback 跟踪 windowDidResize / windowDidMove 等)。
+    override func responds(to aSelector: Selector!) -> Bool {
+        if super.responds(to: aSelector) { return true }
+        return forwarding?.responds(to: aSelector) ?? false
+    }
+
+    override func forwardingTarget(for aSelector: Selector!) -> Any? {
+        if let f = forwarding, f.responds(to: aSelector) { return f }
+        return super.forwardingTarget(for: aSelector)
     }
 }
 

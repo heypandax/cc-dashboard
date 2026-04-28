@@ -10,18 +10,28 @@ Versioning][semver].
 ## [Unreleased]
 
 ### Fixed
-- "Open Main Window" no longer silently does nothing after the user
-  closes the main window via the red traffic light. SwiftUI's default
-  for `Window` scenes was leaving the underlying `NSWindow` released,
-  so the menu-bar action couldn't find anything to bring forward. The
-  app now pins `isReleasedWhenClosed = false` for the main window on
-  launch so the object stays around for the rest of the session.
+- "Open Main Window" no longer silently does nothing after closing the
+  window. Two root causes, both addressed:
+  - On current macOS, SwiftUI sets `NSWindow.identifier` to the scene
+    id directly (`"main"`) and the title to the bundle display name
+    (`"CC Dashboard"`). The matcher we used to find the window in
+    `NSApp.windows` was looking for the older `"main-AppWindow-1"`
+    identifier and the literal `"cc-dashboard"` title — both mismatched
+    on every install, so the menu-bar button silently no-op'd.
+  - Closing the window via the red traffic light made SwiftUI remove
+    it from `NSApp.windows` (scene treated as closed). An
+    `NSWindowDelegate` wrapper now intercepts `windowShouldClose` and
+    converts close into `orderOut`, so the window object stays around
+    for the rest of the session and re-opening just brings it forward.
 - Main window stranded off-screen after a display change. The frame
   autosave was preserving coordinates from a previously-attached
-  external monitor, so on a single-display setup the window would
-  open at the far left of the visible screen — or, with worse stored
-  values, not appear at all. The window's frame is now clamped to a
-  visible screen on launch and on every "Open Main Window" click.
+  external monitor, so on a single-display setup the window opened at
+  the far left of the visible screen — or, with worse stored values,
+  not at all. The window's frame is now clamped to a visible screen
+  on launch and on every "Open Main Window" click.
+- Menu-bar popover stayed open after clicking "Open Main Window". It
+  now dismisses (even when pinned) so focus moves cleanly to the main
+  window.
 
 ## [0.1.6] — 2026-04-28
 
