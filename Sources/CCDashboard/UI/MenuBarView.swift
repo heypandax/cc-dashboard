@@ -119,6 +119,7 @@ private struct MenuHeaderIcon: View {
 struct MenuApprovalCard: View {
     let approval: ApprovalRequest
     let dashboard: Dashboard
+    @State private var submenuOpen = false
 
     private var risk: RiskLevel { riskLevel(for: approval) }
 
@@ -144,68 +145,30 @@ struct MenuApprovalCard: View {
                 .truncationMode(.tail)
 
             HStack(spacing: 6) {
-                Button {
+                AllowButton(size: .compact) {
                     dashboard.decide(approvalID: approval.id, decision: .allow)
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
-                        Text("Allow")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundStyle(CC.inkOnMint)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(
-                        LinearGradient(colors: [CC.mint, CC.mintDeep], startPoint: .top, endPoint: .bottom),
-                        in: RoundedRectangle(cornerRadius: 6)
-                    )
                 }
-                .buttonStyle(.plain)
 
-                Menu {
-                    ForEach(trustMinuteOptions, id: \.self) { mins in
-                        Button("Allow for \(mins) min") {
-                            dashboard.decide(approvalID: approval.id, decision: .allow, trustMinutes: mins)
-                        }
-                    }
-                    Divider()
-                    Button("Custom duration…") {
-                        if let mins = promptCustomTrustMinutes() {
-                            dashboard.decide(approvalID: approval.id, decision: .allow,
-                                             trustMinutes: mins, customTrust: true)
-                        }
-                    }
-                    Divider()
-                    Button("Trust forever") {
+                TrustForeverSplitButton(
+                    onForever: {
                         dashboard.decide(approvalID: approval.id, decision: .allow, trustForever: true)
-                    }
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(CC.mintInk)
-                        .frame(minWidth: 16, minHeight: 16)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .contentShape(Rectangle())
-                .background(CC.mint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(CC.mint.opacity(0.4), lineWidth: 0.5))
-
-                Button {
-                    dashboard.decide(approvalID: approval.id, decision: .deny)
-                } label: {
-                    Text("Deny")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(CC.redInk)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(CC.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(CC.red.opacity(0.35), lineWidth: 0.5))
-                }
-                .buttonStyle(.plain)
+                        submenuOpen = false
+                    },
+                    onTrust: { mins, isCustom in
+                        dashboard.decide(approvalID: approval.id, decision: .allow,
+                                         trustMinutes: mins, customTrust: isCustom)
+                        submenuOpen = false
+                    },
+                    submenuOpen: $submenuOpen,
+                    toolName: approval.toolName,
+                    size: .compact
+                )
 
                 Spacer()
+
+                DenyButton(size: .compact) {
+                    dashboard.decide(approvalID: approval.id, decision: .deny)
+                }
             }
         }
         .padding(10)

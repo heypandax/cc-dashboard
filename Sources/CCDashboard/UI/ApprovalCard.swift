@@ -283,36 +283,23 @@ struct ApprovalRow: View {
                 .padding(.top, 10)
 
             HStack(spacing: 8) {
-                AllowSplitButton(
-                    onAllow: { dashboard.decide(approvalID: approval.id, decision: .allow) },
+                AllowButton {
+                    dashboard.decide(approvalID: approval.id, decision: .allow)
+                }
+
+                TrustForeverSplitButton(
+                    onForever: {
+                        dashboard.decide(approvalID: approval.id, decision: .allow, trustForever: true)
+                        submenuOpen = false
+                    },
                     onTrust: { mins, isCustom in
                         dashboard.decide(approvalID: approval.id, decision: .allow,
                                          trustMinutes: mins, customTrust: isCustom)
                         submenuOpen = false
                     },
-                    onTrustForever: {
-                        dashboard.decide(approvalID: approval.id, decision: .allow, trustForever: true)
-                        submenuOpen = false
-                    },
                     submenuOpen: $submenuOpen,
                     toolName: approval.toolName
                 )
-
-                Button {
-                    dashboard.decide(approvalID: approval.id, decision: .deny)
-                } label: {
-                    Text("Deny")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(CC.redInk)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 7)
-                        .background(CC.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 7)
-                                .strokeBorder(CC.red.opacity(0.35), lineWidth: 0.5)
-                        )
-                }
-                .buttonStyle(.plain)
 
                 if risk == .high {
                     HStack(spacing: 5) {
@@ -324,7 +311,14 @@ struct ApprovalRow: View {
                     .foregroundStyle(CC.redInk)
                     .padding(.leading, 4)
                 }
+
                 Spacer()
+
+                // Deny 留到最右,跟 Allow / Trust forever 留出明显视觉距离 —— 误点代价最大,
+                // 不应该跟两个"放行"挤在一起。
+                DenyButton {
+                    dashboard.decide(approvalID: approval.id, decision: .deny)
+                }
             }
             .padding(.top, 14)
         }
@@ -391,61 +385,133 @@ struct ToolInputPanel: View {
     }
 }
 
-struct AllowSplitButton: View {
-    let onAllow: () -> Void
+/// 审批卡按钮的尺寸预设。`.regular` 主窗口卡片用,`.compact` 菜单栏卡片用 —— 字体 / padding /
+/// 圆角统一从这里取,避免两个 callsite 各自硬编码漂移。
+enum ApprovalButtonSize {
+    case regular
+    case compact
+
+    var labelFont: Font {
+        self == .regular ? .system(size: 13, weight: .semibold)
+                         : .system(size: 12, weight: .semibold)
+    }
+    var iconFont: Font {
+        self == .regular ? .system(size: 11, weight: .bold)
+                         : .system(size: 10, weight: .bold)
+    }
+    var chevronFont: Font {
+        self == .regular ? .system(size: 12, weight: .semibold)
+                         : .system(size: 11, weight: .semibold)
+    }
+    var hPadding: CGFloat { self == .regular ? 14 : 10 }
+    var vPadding: CGFloat { self == .regular ? 7 : 5 }
+    var iconSpacing: CGFloat { self == .regular ? 5 : 4 }
+    var corner: CGFloat { self == .regular ? 7 : 6 }
+}
+
+/// 单次允许 —— mint 实心主按钮,语义最直接:这一笔放行,session 状态不变。
+struct AllowButton: View {
+    var size: ApprovalButtonSize = .regular
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: size.iconSpacing) {
+                Image(systemName: "checkmark").font(size.iconFont)
+                Text("Allow").font(size.labelFont)
+            }
+            .foregroundStyle(CC.inkOnMint)
+            .padding(.horizontal, size.hPadding)
+            .padding(.vertical, size.vPadding)
+            .background(
+                LinearGradient(colors: [CC.mint, CC.mintDeep], startPoint: .top, endPoint: .bottom)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: size.corner))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// 永久允许 split-button —— 主体直接永久信任(amber 视觉强调),▾ 才落到 5/10/30/自定义时间窗。
+/// 拆出来是因为 forever 是高承诺操作,留个独立按钮、独立颜色、∞ 图标,让用户一眼能区分单次 vs 永久。
+struct TrustForeverSplitButton: View {
+    let onForever: () -> Void
     let onTrust: (Int, Bool) -> Void
-    let onTrustForever: () -> Void
     @Binding var submenuOpen: Bool
     let toolName: String
+    var size: ApprovalButtonSize = .regular
 
     var body: some View {
         HStack(spacing: 0) {
-            Button(action: onAllow) {
-                HStack(spacing: 5) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .bold))
-                    Text("Allow")
-                        .font(.system(size: 13, weight: .semibold))
+            Button(action: onForever) {
+                HStack(spacing: size.iconSpacing) {
+                    Image(systemName: "infinity").font(size.iconFont)
+                    Text("Trust forever").font(size.labelFont)
                 }
-                .foregroundStyle(CC.inkOnMint)
-                .padding(.leading, 11)
-                .padding(.trailing, 14)
-                .padding(.vertical, 7)
+                .foregroundStyle(CC.amberInk)
+                .padding(.leading, size.hPadding - 3)
+                .padding(.trailing, size.hPadding)
+                .padding(.vertical, size.vPadding)
             }
             .buttonStyle(.plain)
 
-            Rectangle().fill(Color.black.opacity(0.18)).frame(width: 0.5)
+            Rectangle().fill(CC.amberInk.opacity(0.25)).frame(width: 0.5)
 
             Button { submenuOpen.toggle() } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(CC.inkOnMint)
-                    .frame(minWidth: 18, minHeight: 18)   // 保证 icon 居中,避免细扁
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .contentShape(Rectangle())             // 整个 padding 区都可点,不只是 image 实际像素
+                    .font(size.chevronFont)
+                    .foregroundStyle(CC.amberInk)
+                    .frame(minWidth: size == .regular ? 18 : 14, minHeight: size == .regular ? 18 : 14)
+                    .padding(.horizontal, size.hPadding)
+                    .padding(.vertical, size.vPadding)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .popover(isPresented: $submenuOpen, arrowEdge: .bottom) {
-                TrustSubmenu(toolName: toolName, onSelect: onTrust, onSelectForever: onTrustForever)
+                TrustSubmenu(toolName: toolName, onSelect: onTrust)
             }
         }
-        .background(
-            LinearGradient(colors: [CC.mint, CC.mintDeep], startPoint: .top, endPoint: .bottom)
+        .background(CC.amber.opacity(0.18))
+        .overlay(
+            RoundedRectangle(cornerRadius: size.corner)
+                .strokeBorder(CC.amber.opacity(0.55), lineWidth: 0.5)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .clipShape(RoundedRectangle(cornerRadius: size.corner))
+    }
+}
+
+/// 拒绝 —— 红色描边按钮,误点代价大所以视觉上跟 Allow / Trust forever 区分开。
+struct DenyButton: View {
+    var size: ApprovalButtonSize = .regular
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("Deny")
+                .font(size.labelFont)
+                .foregroundStyle(CC.redInk)
+                .padding(.horizontal, size.hPadding - (size == .regular ? 1 : 0))
+                .padding(.vertical, size.vPadding)
+                .background(CC.red.opacity(0.08), in: RoundedRectangle(cornerRadius: size.corner))
+                .overlay(
+                    RoundedRectangle(cornerRadius: size.corner)
+                        .strokeBorder(CC.red.opacity(0.35), lineWidth: 0.5)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
 /// 共享菜单体:approval card 的 split-button 和 sidebar 行级 trust popover 都用这份。
 /// 只有 intro / footer 的行文不同,按钮行 / 键盘快捷键 / 视觉强调(10min 居中高亮)完全一致。
 /// `onSelect` 的第二个参数标记该次选择是否走了 Custom 分支,便于埋点区分 preset vs. custom。
-/// `onSelectForever` 永久信任分支 —— 视觉上给 amber 强调,语义上"不会过期",直到用户手动取消或 app 退出。
+/// `onSelectForever` 永久信任分支 —— 视觉上给 amber 强调,语义上"不会过期"。传 nil 时隐藏入口,
+/// 用于"forever 已经是外层主按钮、popover 只剩时间窗"这种 case(避免重复)。
 struct TrustPickerMenu: View {
     let introCopy: LocalizedStringKey
     let footerCopy: LocalizedStringKey
     let onSelect: (Int, Bool) -> Void
-    let onSelectForever: () -> Void
+    let onSelectForever: (() -> Void)?
 
     @State private var customText: String = ""
     @FocusState private var customFocused: Bool
@@ -527,26 +593,28 @@ struct TrustPickerMenu: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
 
-            Divider().padding(.horizontal, 2).padding(.vertical, 2)
+            if let onSelectForever {
+                Divider().padding(.horizontal, 2).padding(.vertical, 2)
 
-            Button(action: onSelectForever) {
-                HStack(spacing: 10) {
-                    Image(systemName: "infinity")
-                        .font(.system(size: 11, weight: .bold))
-                    Text("Trust forever").font(.system(size: 13, weight: .semibold))
-                    Spacer()
-                    Text(verbatim: "∞")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.tertiary)
+                Button(action: onSelectForever) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "infinity")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Trust forever").font(.system(size: 13, weight: .semibold))
+                        Spacer()
+                        Text(verbatim: "∞")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .foregroundStyle(CC.amberInk)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(CC.amber.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(CC.amberInk)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(CC.amber.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             Divider().padding(.horizontal, 2).padding(.vertical, 2)
 
@@ -568,18 +636,17 @@ struct TrustPickerMenu: View {
     }
 }
 
-/// 审批卡片里那个版本:intro = "Allow & auto-trust"(含义:允许本次并开窗),footer 提及工具名。
+/// 审批卡片 split-button 的 ▾ 弹层:只展示时间窗选项,因为永久信任已是外层独立主按钮。
 struct TrustSubmenu: View {
     let toolName: String
     let onSelect: (Int, Bool) -> Void
-    let onSelectForever: () -> Void
 
     var body: some View {
         TrustPickerMenu(
-            introCopy: "Allow & auto-trust",
+            introCopy: "Allow for a window",
             footerCopy: "During this window, all \(toolName) tool calls from this session auto-approve.",
             onSelect: onSelect,
-            onSelectForever: onSelectForever
+            onSelectForever: nil
         )
     }
 }
