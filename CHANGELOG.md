@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-04-28
+
 ### Added
 - Permanent trust per session. The "Allow ▾" popover, the sidebar hover
   clock popover, the session-row right-click menu, and the menu-bar
@@ -135,7 +137,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.5
 [0.1.4]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.4
 [0.1.3]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.3
 [0.1.2]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.2
