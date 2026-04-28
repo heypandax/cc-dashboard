@@ -9,6 +9,17 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Fixed
+- Auto mode no longer blocks on the cc-dashboard menu bar. When Claude
+  Code is launched with `--permission-mode bypassPermissions` (or the
+  user picks it in-session), the `PreToolUse` hook now reads
+  `permission_mode` off the payload and returns `allow` immediately
+  without queueing into the approval list. `acceptEdits` does the same
+  for `Edit` / `Write` / `MultiEdit` while leaving `Bash` and the rest
+  to normal review. Reason: Claude Code's hooks fire *before* its own
+  permission check, so suspending in cc-dashboard was overriding the
+  user's "auto" choice.
+
 ## [0.1.5] — 2026-04-28
 
 ### Added

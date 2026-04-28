@@ -26,6 +26,14 @@ struct HookHandlers: Sendable {
             transcriptPath: input.transcriptPath
         )
 
+        // Claude Code 的 PreToolUse hook 在 permission 系统之前触发 —— 用户开了
+        // bypassPermissions / acceptEdits 时如果还把请求挂进审批队列,等于强行
+        // 覆盖了用户的"自动放行"选择。这里早 return,把决定权还回去。
+        if let reason = autoAllowReason(mode: input.permissionMode, toolName: toolName) {
+            Log.session.info("auto-allow tool=\(toolName, privacy: .public) reason=\(reason, privacy: .public)")
+            return allowOutput(reason: reason)
+        }
+
         let request = ApprovalRequest(
             id: UUID().uuidString,
             sessionId: input.sessionID,
@@ -85,6 +93,35 @@ struct HookHandlers: Sendable {
     }
 
     // MARK: - Helpers
+
+    /// 用户在 Claude Code 里开了 auto mode 时,返回一个非 nil 的 reason 表示
+    /// 这个工具调用应该立即放行;返回 nil 表示走正常审批流。
+    /// - bypassPermissions:全部放行(用户已经声明"全自动")
+    /// - acceptEdits:仅 Edit / Write / MultiEdit 放行(Bash 等危险工具仍审)
+    static func autoAllowReason(mode: String?, toolName: String) -> String? {
+        guard let mode else { return nil }
+        switch mode {
+        case "bypassPermissions":
+            return "Auto-allow (permission_mode=bypassPermissions)"
+        case "acceptEdits" where ["Edit", "Write", "MultiEdit"].contains(toolName):
+            return "Auto-allow (permission_mode=acceptEdits)"
+        default:
+            return nil
+        }
+    }
+
+    private func autoAllowReason(mode: String?, toolName: String) -> String? {
+        Self.autoAllowReason(mode: mode, toolName: toolName)
+    }
+
+    private func allowOutput(reason: String) -> HookOutput {
+        HookOutput(hookSpecificOutput: .init(
+            hookEventName: "PreToolUse",
+            permissionDecision: "allow",
+            permissionDecisionReason: reason
+        ))
+    }
+
     private func denyOutput(reason: String) -> HookOutput {
         HookOutput(hookSpecificOutput: .init(
             hookEventName: "PreToolUse",
