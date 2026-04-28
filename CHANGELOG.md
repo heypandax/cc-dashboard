@@ -9,6 +9,16 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Fixed
+- When cc-dashboard isn't running, the `PreToolUse` hook used to return
+  `permissionDecision: "ask"` with a `cc-dashboard unavailable` reason.
+  Claude Code rendered that as a stripped-down Yes / No prompt, hiding
+  its richer native options (e.g. "Yes, allow this command for this
+  project"). The hook now `exit 0`s with empty stdout when cc-dashboard
+  isn't reachable or its response times out, which Claude Code treats
+  as "hook had no opinion" and falls back to its full native permission
+  UI. cc-dashboard re-installs the updated script on next launch.
+
 ## [0.1.7] — 2026-04-28
 
 ### Fixed
