@@ -8,3 +8,4 @@ ANNOUNCE.md
 .claude/settings.local.json
 .claude/*.local.json
 GoogleService-Info.plist
+design/screenshots/
