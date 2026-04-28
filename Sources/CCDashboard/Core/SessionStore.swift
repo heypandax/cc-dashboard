@@ -115,11 +115,11 @@ actor SessionStore {
 
     /// 挂起等待 UI 决策,永远不自动 deny。若 app 卡死或被 Quit,hook wrapper 的 curl 超时会触发 `ask` fallback,
     /// 走 Claude Code 原生 TUI 弹窗,不阻断使用。
-    /// 若该 session 有未过期的 auto-allow grant,直接返回 `.allow`,不挂起、不广播审批请求。
+    /// 若该 session 已被永久信任、或在未过期的 auto-allow window 内,直接返回 `.allow`,不挂起、不广播审批请求。
     func requestApproval(_ request: ApprovalRequest) async -> ApprovalDecision {
-        if let until = sessions[request.sessionId]?.autoAllowUntil, until > now() {
+        if let s = sessions[request.sessionId], s.hasActiveTrust(now: now()) {
             touchSession(id: request.sessionId, cwd: request.cwd, status: .running, tool: request.toolName)
-            Log.autoAllow.info("hit session=\(request.sessionId, privacy: .public) tool=\(request.toolName, privacy: .public)")
+            Log.autoAllow.info("hit session=\(request.sessionId, privacy: .public) tool=\(request.toolName, privacy: .public) forever=\(s.autoAllowForever)")
             return .allow
         }
 
@@ -135,7 +135,7 @@ actor SessionStore {
         }
     }
 
-    func resolveApproval(id: String, decision: ApprovalDecision, reason: String? = nil, trustMinutes: Int? = nil) {
+    func resolveApproval(id: String, decision: ApprovalDecision, reason: String? = nil, trustMinutes: Int? = nil, trustForever: Bool = false) {
         let sessionID = pendingApprovals[id]?.sessionId
         guard let cont = pendingContinuations.removeValue(forKey: id) else { return }
         pendingApprovals.removeValue(forKey: id)
@@ -144,8 +144,12 @@ actor SessionStore {
         if let sessionID {
             touchSession(id: sessionID, status: .running)
         }
-        if decision == .allow, let minutes = trustMinutes, minutes > 0, let sid = sessionID {
-            setAutoAllow(sessionID: sid, minutes: minutes)
+        if decision == .allow, let sid = sessionID {
+            if trustForever {
+                setAutoAllowForever(sessionID: sid)
+            } else if let minutes = trustMinutes, minutes > 0 {
+                setAutoAllow(sessionID: sid, minutes: minutes)
+            }
         }
     }
 
@@ -159,6 +163,8 @@ actor SessionStore {
             return
         }
         s.autoAllowUntil = until
+        // 显式 time-boxed grant 覆盖 forever —— 用户最后一次操作为准
+        s.autoAllowForever = false
         sessions[sessionID] = s
         broadcast(.sessionUpsert(s))
         broadcast(.autoAllowSet(sessionId: sessionID, until: until))
@@ -166,8 +172,42 @@ actor SessionStore {
         // producer 直接上报 authoritative minutes —— 不从 Dashboard 端反推 until→minutes(可能 off-by-one)
         Telemetry.track(.autoAllowSet, [.minutes: minutes])
 
-        // "开窗之前"这一刻还挂着的同 session pending 审批,和窗口内未来的调用同等对待 —— 一并 allow。
-        // 不 resume 的话用户会体验到"我已经点了信任,为啥卡着那笔还要手动同意一次"。
+        drainPendingApprovals(forSession: sessionID)
+
+        autoAllowExpireTasks[sessionID]?.cancel()
+        autoAllowExpireTasks[sessionID] = Task { [weak self] in
+            guard let self else { return }
+            await self.delay(UInt64(minutes) * 60 * 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            await self.clearAutoAllow(sessionID: sessionID, reason: "expired")
+        }
+    }
+
+    /// 永久信任。和 setAutoAllow 共享 drain pending + broadcast 语义,但不调度 expiry。
+    /// 同时清空已存在的 time-boxed 窗口,避免到期 task 误触 `clearAutoAllow` 把 forever 一起抹掉。
+    func setAutoAllowForever(sessionID: String) {
+        guard var s = sessions[sessionID] else {
+            Log.autoAllow.error("set forever dropped: session=\(sessionID, privacy: .public) not found")
+            return
+        }
+        // 取消可能挂着的 time-boxed expiry —— 否则它将来 fire 会误清掉 forever
+        autoAllowExpireTasks[sessionID]?.cancel()
+        autoAllowExpireTasks.removeValue(forKey: sessionID)
+
+        s.autoAllowForever = true
+        s.autoAllowUntil = nil
+        sessions[sessionID] = s
+        broadcast(.sessionUpsert(s))
+        broadcast(.autoAllowForeverSet(sessionId: sessionID))
+        Log.autoAllow.notice("set forever session=\(sessionID, privacy: .public)")
+        Telemetry.track(.autoAllowForeverSet)
+
+        drainPendingApprovals(forSession: sessionID)
+    }
+
+    /// "开窗之前"这一刻还挂着的同 session pending 审批,和窗口内未来的调用同等对待 —— 一并 allow。
+    /// 不 resume 的话用户会体验到"我已经点了信任,为啥卡着那笔还要手动同意一次"。
+    private func drainPendingApprovals(forSession sessionID: String) {
         let drained = pendingApprovals.filter { $0.value.sessionId == sessionID }.keys
         for id in drained {
             guard let cont = pendingContinuations.removeValue(forKey: id) else { continue }
@@ -179,22 +219,15 @@ actor SessionStore {
             touchSession(id: sessionID, status: .running)
             Log.autoAllow.notice("drained \(drained.count) pending approval(s) session=\(sessionID, privacy: .public)")
         }
-
-        autoAllowExpireTasks[sessionID]?.cancel()
-        autoAllowExpireTasks[sessionID] = Task { [weak self] in
-            guard let self else { return }
-            await self.delay(UInt64(minutes) * 60 * 1_000_000_000)
-            guard !Task.isCancelled else { return }
-            await self.clearAutoAllow(sessionID: sessionID, reason: "expired")
-        }
     }
 
     func clearAutoAllow(sessionID: String, reason: String = "manual") {
         autoAllowExpireTasks[sessionID]?.cancel()
         autoAllowExpireTasks.removeValue(forKey: sessionID)
-        guard var s = sessions[sessionID], s.autoAllowUntil != nil else { return }
-        Log.autoAllow.notice("clear session=\(sessionID, privacy: .public) reason=\(reason, privacy: .public)")
+        guard var s = sessions[sessionID], (s.autoAllowUntil != nil || s.autoAllowForever) else { return }
+        Log.autoAllow.notice("clear session=\(sessionID, privacy: .public) reason=\(reason, privacy: .public) forever=\(s.autoAllowForever)")
         s.autoAllowUntil = nil
+        s.autoAllowForever = false
         sessions[sessionID] = s
         broadcast(.sessionUpsert(s))
         broadcast(.autoAllowCleared(sessionId: sessionID))

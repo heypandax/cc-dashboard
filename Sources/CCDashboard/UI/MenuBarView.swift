@@ -175,6 +175,10 @@ struct MenuApprovalCard: View {
                                              trustMinutes: mins, customTrust: true)
                         }
                     }
+                    Divider()
+                    Button("Trust forever") {
+                        dashboard.decide(approvalID: approval.id, decision: .allow, trustForever: true)
+                    }
                 } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .semibold))

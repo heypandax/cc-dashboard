@@ -55,7 +55,8 @@ struct DashboardHTTPServer: Sendable {
                 id: id,
                 decision: decision.decision,
                 reason: decision.reason,
-                trustMinutes: decision.trustMinutes
+                trustMinutes: decision.trustMinutes,
+                trustForever: decision.trustForever ?? false
             )
             return HookAckResponse(ok: true)
         }
@@ -65,6 +66,13 @@ struct DashboardHTTPServer: Sendable {
             let sid = try context.parameters.require("sessionId")
             let body = try await request.decode(as: TrustRequest.self, context: context)
             await store.setAutoAllow(sessionID: sid, minutes: body.minutes)
+            return HookAckResponse(ok: true)
+        }
+
+        // 永久信任 —— 不带 body,语义上是显式的 "never expire"。
+        router.post("/trust/:sessionId/forever") { _, context -> HookAckResponse in
+            let sid = try context.parameters.require("sessionId")
+            await store.setAutoAllowForever(sessionID: sid)
             return HookAckResponse(ok: true)
         }
 

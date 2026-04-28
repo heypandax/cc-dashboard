@@ -20,8 +20,21 @@ struct SessionState: Codable, Sendable, Identifiable {
     var lastTool: String?
     var lastNotification: String?
     var autoAllowUntil: Date?
+    /// 永久信任标记。和 `autoAllowUntil` 互斥(set 任一会清空另一项),`hasActiveTrust(now:)`
+    /// 两者 OR。生命周期同 in-memory state —— 进程重启即清空,与现有安全模型一致。
+    var autoAllowForever: Bool = false
     /// 用户自定义显示名。持久化源是 AliasStore(按 cwd),这里的字段只是广播/查询时的投影。
     var alias: String?
+}
+
+extension SessionState {
+    /// 单一信任判定 —— forever 或未过期 time-boxed window 都算命中。actor 侧和 UI 侧共用,避免双字段
+    /// 检查在多处重复(曾经在 4 个文件里漂移过)。
+    func hasActiveTrust(now: Date) -> Bool {
+        if autoAllowForever { return true }
+        if let until = autoAllowUntil, until > now { return true }
+        return false
+    }
 }
 
 // MARK: - Approval
@@ -52,6 +65,7 @@ struct DecisionRequest: Codable, Sendable {
     let decision: ApprovalDecision
     let reason: String?
     let trustMinutes: Int?
+    let trustForever: Bool?
 }
 
 struct TrustRequest: Codable, Sendable {
@@ -143,6 +157,7 @@ enum DashboardEvent: Sendable {
     case approvalAdd(ApprovalRequest)
     case approvalResolve(String)
     case autoAllowSet(sessionId: String, until: Date)
+    case autoAllowForeverSet(sessionId: String)
     case autoAllowCleared(sessionId: String)
     case sessionAliasChanged(sessionId: String, alias: String?)
     case snapshot(sessions: [SessionState], approvals: [ApprovalRequest])
@@ -175,6 +190,9 @@ extension DashboardEvent: Encodable {
             try c.encode("auto_allow_set", forKey: .type)
             try c.encode(sid, forKey: .sessionId)
             try c.encode(until, forKey: .until)
+        case .autoAllowForeverSet(let sid):
+            try c.encode("auto_allow_forever_set", forKey: .type)
+            try c.encode(sid, forKey: .sessionId)
         case .autoAllowCleared(let sid):
             try c.encode("auto_allow_cleared", forKey: .type)
             try c.encode(sid, forKey: .sessionId)

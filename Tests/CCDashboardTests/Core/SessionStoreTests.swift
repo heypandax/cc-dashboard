@@ -142,6 +142,143 @@ final class SessionStoreTests: XCTestCase {
         _ = await decisionOther
     }
 
+    // MARK: - 永久信任:set forever 排空同 session 的 pending 审批
+
+    func testSetAutoAllowForeverDrainsPendingApprovals() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+
+        let req = ApprovalRequest(
+            id: "req-f", sessionId: "s1", toolName: "Bash",
+            toolInput: [:], cwd: "/", createdAt: Date()
+        )
+        async let decision = store.requestApproval(req)
+        _ = await pollForApproval(store: store)
+
+        await store.setAutoAllowForever(sessionID: "s1")
+        let r = await decision
+        XCTAssertEqual(r, .allow)
+
+        let stillPending = await store.allApprovals()
+        XCTAssertTrue(stillPending.isEmpty)
+    }
+
+    // MARK: - 永久信任:后续请求命中 auto-allow
+
+    func testTrustForeverEnablesSubsequentAutoAllow() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.setAutoAllowForever(sessionID: "s1")
+
+        let req = ApprovalRequest(
+            id: "req-x", sessionId: "s1", toolName: "Edit",
+            toolInput: [:], cwd: "/", createdAt: Date()
+        )
+        let d = await store.requestApproval(req)
+        XCTAssertEqual(d, .allow)
+
+        let pending = await store.allApprovals()
+        XCTAssertTrue(pending.isEmpty)
+    }
+
+    // MARK: - 永久信任:resolveApproval(trustForever: true) 触发设置
+
+    func testResolveApprovalWithTrustForeverSetsFlag() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+
+        let req = ApprovalRequest(
+            id: "req-rf", sessionId: "s1", toolName: "Bash",
+            toolInput: [:], cwd: "/", createdAt: Date()
+        )
+        async let decision = store.requestApproval(req)
+        _ = await pollForApproval(store: store)
+
+        await store.resolveApproval(id: "req-rf", decision: .allow, reason: nil, trustMinutes: nil, trustForever: true)
+        _ = await decision
+
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.first?.autoAllowForever, true)
+        XCTAssertNil(sessions.first?.autoAllowUntil)
+    }
+
+    // MARK: - 永久信任:clearAutoAllow 清掉 forever 标志
+
+    func testClearAutoAllowClearsForeverFlag() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.setAutoAllowForever(sessionID: "s1")
+
+        await store.clearAutoAllow(sessionID: "s1")
+
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.first?.autoAllowForever, false)
+        XCTAssertNil(sessions.first?.autoAllowUntil)
+
+        // 再来一笔请求应入 pending
+        let req = ApprovalRequest(
+            id: "req-after", sessionId: "s1", toolName: "Bash",
+            toolInput: [:], cwd: "/", createdAt: Date()
+        )
+        async let d = store.requestApproval(req)
+        _ = await pollForApproval(store: store)
+        let pending = await store.allApprovals()
+        XCTAssertEqual(pending.count, 1)
+        await store.resolveApproval(id: "req-after", decision: .deny, reason: nil, trustMinutes: nil)
+        _ = await d
+    }
+
+    // MARK: - 永久信任 vs. time-boxed:互相覆盖
+
+    func testSetAutoAllowForeverClearsTimeBoxed() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.setAutoAllow(sessionID: "s1", minutes: 30)
+
+        await store.setAutoAllowForever(sessionID: "s1")
+
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.first?.autoAllowForever, true)
+        XCTAssertNil(sessions.first?.autoAllowUntil, "forever 设置后 time-boxed window 应清空")
+    }
+
+    func testSetAutoAllowClearsForever() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.setAutoAllowForever(sessionID: "s1")
+
+        await store.setAutoAllow(sessionID: "s1", minutes: 5)
+
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.first?.autoAllowForever, false, "显式 time-boxed grant 应覆盖 forever")
+        XCTAssertNotNil(sessions.first?.autoAllowUntil)
+    }
+
+    // MARK: - 永久信任:广播 .autoAllowForeverSet 事件
+
+    func testSetAutoAllowForeverBroadcastsEvent() async throws {
+        let store = SessionStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()  // snapshot
+
+        await store.setAutoAllowForever(sessionID: "s1")
+
+        // 第一条:sessionUpsert(state.autoAllowForever == true)
+        guard case .sessionUpsert(let s) = await iter.next() else {
+            return XCTFail("expected .sessionUpsert first")
+        }
+        XCTAssertTrue(s.autoAllowForever)
+
+        // 第二条:autoAllowForeverSet(sessionId)
+        guard case .autoAllowForeverSet(let sid) = await iter.next() else {
+            return XCTFail("expected .autoAllowForeverSet second")
+        }
+        XCTAssertEqual(sid, "s1")
+    }
+
     // MARK: - trustMinutes > 0 后续请求命中 auto-allow
 
     func testTrustMinutesEnablesSubsequentAutoAllow() async throws {

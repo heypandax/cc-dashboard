@@ -86,6 +86,8 @@ final class Dashboard {
         case .autoAllowSet:
             break  // 埋点由 SessionStore 在 setAutoAllow 处上报(有 authoritative minutes);
                    // session 的 autoAllowUntil 字段已通过 sessionUpsert 同步,UI 自动 react。
+        case .autoAllowForeverSet:
+            break  // 同上 —— forever 标志走 sessionUpsert,埋点在 store 侧。
         case .autoAllowCleared:
             break
         case .sessionAliasChanged:
@@ -93,16 +95,17 @@ final class Dashboard {
         }
     }
 
-    func decide(approvalID: String, decision: ApprovalDecision, trustMinutes: Int? = nil, customTrust: Bool = false) {
+    func decide(approvalID: String, decision: ApprovalDecision, trustMinutes: Int? = nil, customTrust: Bool = false, trustForever: Bool = false) {
         // store.resolveApproval 是幂等的 —— UI entry 已消失也继续调(比如快速双击)
         if let a = approvals.first(where: { $0.id == approvalID }) {
             Telemetry.track(.approvalDecided, approvalParams(a).merging([
                 .decision:     decision.rawValue,
                 .trustMinutes: trustMinutes ?? 0,
                 .customTrust:  customTrust ? 1 : 0,
+                .trustForever: trustForever ? 1 : 0,
             ]) { $1 })
         }
-        Task { await store.resolveApproval(id: approvalID, decision: decision, trustMinutes: trustMinutes) }
+        Task { await store.resolveApproval(id: approvalID, decision: decision, trustMinutes: trustMinutes, trustForever: trustForever) }
     }
 
     /// tool + risk 两个字段在 approval_shown 和 approval_decided 两个事件里都要。
@@ -115,6 +118,10 @@ final class Dashboard {
 
     func trustSession(sessionID: String, minutes: Int) {
         Task { await store.setAutoAllow(sessionID: sessionID, minutes: minutes) }
+    }
+
+    func trustSessionForever(sessionID: String) {
+        Task { await store.setAutoAllowForever(sessionID: sessionID) }
     }
 
     func clearTrust(sessionID: String) {
@@ -155,7 +162,7 @@ final class Dashboard {
 
     var hasActiveAutoAllow: Bool {
         let now = Date()
-        return sessions.contains { ($0.autoAllowUntil ?? .distantPast) > now }
+        return sessions.contains { $0.hasActiveTrust(now: now) }
     }
 
     /// 按 status 优先级 + 启动时间排:waitingApproval > running > idle > done > error,

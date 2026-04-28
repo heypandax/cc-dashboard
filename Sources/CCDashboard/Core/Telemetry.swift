@@ -7,19 +7,21 @@ import Foundation
 /// 方便后续替换/关停。遵守"只上报枚举级元数据(tool / risk / decision),不带用户内容"的隐私约定。
 enum Telemetry {
     enum Event: String {
-        case appLaunch         = "app_launch"
-        case approvalShown     = "approval_shown"
-        case approvalDecided   = "approval_decided"
-        case allowAllUsed      = "allow_all_used"
-        case autoAllowSet      = "auto_allow_set"
-        case sessionRenamed    = "session_renamed"
-        case trustFromRow      = "trust_from_row"
+        case appLaunch              = "app_launch"
+        case approvalShown          = "approval_shown"
+        case approvalDecided        = "approval_decided"
+        case allowAllUsed           = "allow_all_used"
+        case autoAllowSet           = "auto_allow_set"
+        case autoAllowForeverSet    = "auto_allow_forever_set"
+        case sessionRenamed         = "session_renamed"
+        case trustFromRow           = "trust_from_row"
     }
 
     enum Key: String {
         case tool, risk, decision, count, minutes, version, phase, cleared
         case trustMinutes = "trust_minutes"
         case customTrust  = "custom_trust"
+        case trustForever = "trust_forever"
     }
 
     /// UserDefaults key。命令行 opt-out:

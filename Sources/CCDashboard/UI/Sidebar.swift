@@ -46,16 +46,19 @@ struct StatusDot: View {
 }
 
 /// Mint 胶囊 + 时钟 icon + mono countdown + × 取消 trust。
+/// `expiresAt = nil` 表示永久信任 —— 渲染 ∞,用 amber 强调,不再起 1Hz timer 重画。
 struct TrustBadge: View {
-    let expiresAt: Date
+    let expiresAt: Date?
     let onCancel: () -> Void
     @State private var now = Date()
 
+    private var isForever: Bool { expiresAt == nil }
+
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "clock")
+            Image(systemName: isForever ? "infinity" : "clock")
                 .font(.system(size: 9, weight: .semibold))
-            Text("auto \(remaining)")
+            Text(label)
                 .font(CC.monoTiny.weight(.semibold).monospacedDigit())
             Button(action: onCancel) {
                 Image(systemName: "xmark")
@@ -65,19 +68,21 @@ struct TrustBadge: View {
             .buttonStyle(.plain)
             .help("Cancel auto-allow")
         }
-        .foregroundStyle(CC.mintInk)
+        .foregroundStyle(isForever ? CC.amberInk : CC.mintInk)
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(Capsule().fill(CC.mint.opacity(0.18)))
-        .overlay(Capsule().strokeBorder(CC.mint.opacity(0.45), lineWidth: 0.5))
+        .background(Capsule().fill((isForever ? CC.amber : CC.mint).opacity(0.18)))
+        .overlay(Capsule().strokeBorder((isForever ? CC.amber : CC.mint).opacity(0.45), lineWidth: 0.5))
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            now = Date()
+            // forever 不需要重画 —— 但订阅成本可忽略,保持简单
+            if !isForever { now = Date() }
         }
     }
 
-    private var remaining: String {
+    private var label: String {
+        guard let expiresAt else { return String(localized: "trusted") }
         let secs = max(0, Int(expiresAt.timeIntervalSince(now)))
-        return String(format: "%d:%02d", secs / 60, secs % 60)
+        return String(format: "auto %d:%02d", secs / 60, secs % 60)
     }
 }
 
@@ -149,12 +154,14 @@ struct SessionNameField: View {
 /// intro / footer 跟 approval 卡片里那一版不同:不是"允许这次 + 开窗",而是纯"开窗"。
 struct RowTrustMenu: View {
     let onSelect: (Int, Bool) -> Void
+    let onSelectForever: () -> Void
 
     var body: some View {
         TrustPickerMenu(
             introCopy: "Start trust window",
             footerCopy: "During this window, all tool calls from this session auto-approve.",
-            onSelect: onSelect
+            onSelect: onSelect,
+            onSelectForever: onSelectForever
         )
     }
 }
@@ -191,7 +198,7 @@ struct SessionRow: View {
     }
 
     private var hasActiveTrust: Bool {
-        (session.autoAllowUntil ?? .distantPast) > Date()
+        session.hasActiveTrust(now: Date())
     }
 
     var body: some View {
@@ -199,7 +206,11 @@ struct SessionRow: View {
             HStack(spacing: 8) {
                 StatusDot(status: session.status)
                 SessionNameField(session: session, dashboard: dashboard, editing: $editing)
-                if let until = session.autoAllowUntil, until > Date() {
+                if session.autoAllowForever {
+                    TrustBadge(expiresAt: nil) {
+                        dashboard.clearTrust(sessionID: session.id)
+                    }
+                } else if let until = session.autoAllowUntil, until > Date() {
                     TrustBadge(expiresAt: until) {
                         dashboard.clearTrust(sessionID: session.id)
                     }
@@ -214,11 +225,18 @@ struct SessionRow: View {
                     .buttonStyle(.plain)
                     .help("Start auto-trust window")
                     .popover(isPresented: $trustPopoverOpen, arrowEdge: .bottom) {
-                        RowTrustMenu { mins, isCustom in
-                            dashboard.trustSession(sessionID: session.id, minutes: mins)
-                            Telemetry.track(.trustFromRow, [.minutes: mins, .customTrust: isCustom ? 1 : 0])
-                            trustPopoverOpen = false
-                        }
+                        RowTrustMenu(
+                            onSelect: { mins, isCustom in
+                                dashboard.trustSession(sessionID: session.id, minutes: mins)
+                                Telemetry.track(.trustFromRow, [.minutes: mins, .customTrust: isCustom ? 1 : 0])
+                                trustPopoverOpen = false
+                            },
+                            onSelectForever: {
+                                dashboard.trustSessionForever(sessionID: session.id)
+                                Telemetry.track(.trustFromRow, [.trustForever: 1])
+                                trustPopoverOpen = false
+                            }
+                        )
                     }
                 }
                 Spacer(minLength: 4)
@@ -265,6 +283,11 @@ struct SessionRow: View {
                         dashboard.trustSession(sessionID: session.id, minutes: mins)
                         Telemetry.track(.trustFromRow, [.minutes: mins, .customTrust: 1])
                     }
+                }
+                Divider()
+                Button("Trust forever") {
+                    dashboard.trustSessionForever(sessionID: session.id)
+                    Telemetry.track(.trustFromRow, [.trustForever: 1])
                 }
             }
             if hasActiveTrust {

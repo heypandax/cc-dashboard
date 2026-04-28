@@ -10,6 +10,7 @@
 "Sessions" = "会话";
 "No active sessions" = "暂无活跃会话";
 "tool:" = "工具:";
+"trusted" = "永久信任";
 "Cancel auto-allow" = "取消自动信任";
 "connected" = "已连接";
 "error" = "异常";
@@ -62,3 +63,6 @@
 "Custom trust duration" = "自定义信任时长";
 "Enter how many minutes to auto-approve tool calls (1–%lld)." = "请输入自动放行工具调用的分钟数(1–%lld)。";
 "Cancel" = "取消";
+
+/* 永久信任 */
+"Trust forever" = "永久信任";

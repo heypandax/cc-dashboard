@@ -92,7 +92,8 @@ struct ApprovalQueueView: View {
     let dashboard: Dashboard
 
     private var autoAllowCount: Int {
-        dashboard.sessions.filter { ($0.autoAllowUntil ?? .distantPast) > Date() }.count
+        let now = Date()
+        return dashboard.sessions.filter { $0.hasActiveTrust(now: now) }.count
     }
 
     var body: some View {
@@ -289,6 +290,10 @@ struct ApprovalRow: View {
                                          trustMinutes: mins, customTrust: isCustom)
                         submenuOpen = false
                     },
+                    onTrustForever: {
+                        dashboard.decide(approvalID: approval.id, decision: .allow, trustForever: true)
+                        submenuOpen = false
+                    },
                     submenuOpen: $submenuOpen,
                     toolName: approval.toolName
                 )
@@ -389,6 +394,7 @@ struct ToolInputPanel: View {
 struct AllowSplitButton: View {
     let onAllow: () -> Void
     let onTrust: (Int, Bool) -> Void
+    let onTrustForever: () -> Void
     @Binding var submenuOpen: Bool
     let toolName: String
 
@@ -421,7 +427,7 @@ struct AllowSplitButton: View {
             }
             .buttonStyle(.plain)
             .popover(isPresented: $submenuOpen, arrowEdge: .bottom) {
-                TrustSubmenu(toolName: toolName, onSelect: onTrust)
+                TrustSubmenu(toolName: toolName, onSelect: onTrust, onSelectForever: onTrustForever)
             }
         }
         .background(
@@ -434,10 +440,12 @@ struct AllowSplitButton: View {
 /// 共享菜单体:approval card 的 split-button 和 sidebar 行级 trust popover 都用这份。
 /// 只有 intro / footer 的行文不同,按钮行 / 键盘快捷键 / 视觉强调(10min 居中高亮)完全一致。
 /// `onSelect` 的第二个参数标记该次选择是否走了 Custom 分支,便于埋点区分 preset vs. custom。
+/// `onSelectForever` 永久信任分支 —— 视觉上给 amber 强调,语义上"不会过期",直到用户手动取消或 app 退出。
 struct TrustPickerMenu: View {
     let introCopy: LocalizedStringKey
     let footerCopy: LocalizedStringKey
     let onSelect: (Int, Bool) -> Void
+    let onSelectForever: () -> Void
 
     @State private var customText: String = ""
     @FocusState private var customFocused: Bool
@@ -521,6 +529,27 @@ struct TrustPickerMenu: View {
 
             Divider().padding(.horizontal, 2).padding(.vertical, 2)
 
+            Button(action: onSelectForever) {
+                HStack(spacing: 10) {
+                    Image(systemName: "infinity")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Trust forever").font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Text(verbatim: "∞")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(CC.amberInk)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(CC.amber.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.horizontal, 2).padding(.vertical, 2)
+
             Text(footerCopy)
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
@@ -543,12 +572,14 @@ struct TrustPickerMenu: View {
 struct TrustSubmenu: View {
     let toolName: String
     let onSelect: (Int, Bool) -> Void
+    let onSelectForever: () -> Void
 
     var body: some View {
         TrustPickerMenu(
             introCopy: "Allow & auto-trust",
             footerCopy: "During this window, all \(toolName) tool calls from this session auto-approve.",
-            onSelect: onSelect
+            onSelect: onSelect,
+            onSelectForever: onSelectForever
         )
     }
 }

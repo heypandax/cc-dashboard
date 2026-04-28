@@ -116,6 +116,31 @@ final class SessionStoreClockTests: XCTestCase {
         _ = await d2
     }
 
+    // MARK: - 永久信任不过期:虚拟时钟跳一年仍命中
+
+    func testAutoAllowForeverDoesNotExpire() async throws {
+        let sched = TestScheduler()
+        let store = makeStore(sched: sched)
+
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.setAutoAllowForever(sessionID: "s1")
+        await waitForScheduledWork()
+
+        // 跳一年 —— time-boxed window 早就过期了,forever 不该被 expiry task 误清
+        sched.advance(bySeconds: 365 * 24 * 60 * 60)
+        await waitForScheduledWork()
+
+        let sessions = await store.allSessions()
+        XCTAssertEqual(sessions.first?.autoAllowForever, true)
+
+        let req = ApprovalRequest(
+            id: "r1", sessionId: "s1", toolName: "Bash",
+            toolInput: [:], cwd: "/", createdAt: sched.now
+        )
+        let d = await store.requestApproval(req)
+        XCTAssertEqual(d, .allow)
+    }
+
     /// 让 actor hop + scheduler-registered continuation 有机会跑。
     /// TestScheduler 是虚拟时钟,不能依赖 wall-clock sleep,只 yield。
     private func waitForScheduledWork() async {

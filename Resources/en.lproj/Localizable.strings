@@ -11,6 +11,7 @@
 "No active sessions" = "No active sessions";
 "tool:" = "tool:";
 "auto %@" = "auto %@";
+"trusted" = "trusted";
 "Cancel auto-allow" = "Cancel auto-allow";
 "connected" = "connected";
 "error" = "error";
@@ -63,3 +64,6 @@
 "Custom trust duration" = "Custom trust duration";
 "Enter how many minutes to auto-approve tool calls (1–%lld)." = "Enter how many minutes to auto-approve tool calls (1–%lld).";
 "Cancel" = "Cancel";
+
+/* Permanent trust */
+"Trust forever" = "Trust forever";

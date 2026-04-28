@@ -120,6 +120,7 @@ final class ModelsTests: XCTestCase {
             (.approvalAdd(approval),                                        "approval_add"),
             (.approvalResolve("a1"),                                        "approval_resolve"),
             (.autoAllowSet(sessionId: "s1", until: fixedDate),              "auto_allow_set"),
+            (.autoAllowForeverSet(sessionId: "s1"),                         "auto_allow_forever_set"),
             (.autoAllowCleared(sessionId: "s1"),                            "auto_allow_cleared"),
             (.sessionAliasChanged(sessionId: "s1", alias: "hello"),         "session_alias_changed"),
             (.sessionAliasChanged(sessionId: "s1", alias: nil),             "session_alias_changed"),
@@ -150,6 +151,19 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(obj["type"] as? String, "auto_allow_set")
         XCTAssertEqual(obj["sessionId"] as? String, "s1")
         XCTAssertEqual(obj["until"] as? String, "2023-11-14T22:13:20Z")
+    }
+
+    func testDashboardEventAutoAllowForeverSetShape() throws {
+        let event = DashboardEvent.autoAllowForeverSet(sessionId: "s1")
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(event)
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(obj["type"] as? String, "auto_allow_forever_set")
+        XCTAssertEqual(obj["sessionId"] as? String, "s1")
+        XCTAssertNil(obj["until"], "forever 事件不应携带 until")
     }
 
     // MARK: - sessionAliasChanged:alias 非 nil 带字段,nil 省字段

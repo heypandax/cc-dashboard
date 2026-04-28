@@ -9,6 +9,14 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Added
+- Permanent trust per session. The "Allow ▾" popover, the sidebar hover
+  clock popover, the session-row right-click menu, and the menu-bar
+  approval card all expose a "Trust forever" option that auto-approves
+  every subsequent tool call from that session until the user cancels
+  or the app quits. The session row badge renders ∞ in amber when
+  permanently trusted (vs. the mint countdown for time-boxed windows).
+
 ## [0.1.4] — 2026-04-24
 
 ### Added

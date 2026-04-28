@@ -75,6 +75,31 @@ final class HTTPRoutesTests: XCTestCase {
         }
     }
 
+    // MARK: - POST /trust/:sid/forever → autoAllowForever = true
+
+    func testTrustForeverEndpointSetsForeverFlag() async throws {
+        let store = SessionStore()
+        let server = DashboardHTTPServer(store: store, port: 0)
+        try await server.buildApplication().test(.live) { client in
+            _ = try await client.execute(
+                uri: "/hook/session-start", method: .post,
+                body: ByteBuffer(string: #"{"session_id": "s-fv", "cwd": "/"}"#)
+            )
+
+            try await client.execute(uri: "/trust/s-fv/forever", method: .post) { r in
+                XCTAssertEqual(r.status, .ok)
+            }
+
+            try await client.execute(uri: "/sessions", method: .get) { r in
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let sessions = try decoder.decode([SessionState].self, from: Data(buffer: r.body))
+                XCTAssertEqual(sessions.first?.autoAllowForever, true)
+                XCTAssertNil(sessions.first?.autoAllowUntil)
+            }
+        }
+    }
+
     // MARK: - DELETE /trust/:sid → autoAllowUntil 清空
 
     func testTrustEndpointClearsAutoAllow() async throws {
