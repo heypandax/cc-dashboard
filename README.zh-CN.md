@@ -45,13 +45,18 @@ brew install --cask cc-dashboard
   全屏都不关。
 - **主窗口**:左侧会话列表,右侧审批队列,工具入参可折叠,卡片左边条按
   风险染色。
-- **Auto-allow(临时信任)** —— 审批卡片上可选 "Allow for 2 / 10 / 30 min";
-  窗口内同 session 的后续 PreToolUse 自动放行。Session 行有倒计时 badge
-  + 取消按钮。
+- **Auto-allow(临时信任)** —— 审批卡片上可选"信任 2 / 10 / 30 min",
+  也可输入最长 24 小时的自定义时长;窗口内同 session 的后续 PreToolUse
+  自动放行。Session 行有倒计时 badge + 取消按钮。
+- **永久允许(Trust forever)** —— "允许"右边一个独立按钮,把当前 session
+  钉成无限信任,直到手动取消。两种信任都按项目目录(cwd)持久化,App
+  退出 / 重启后自动恢复。
 - **全部允许**(⌘↩)一键放行所有待审。
 - **风险提示** —— `rm -rf` / `sudo` / `curl | sh` / `/etc/*` `/usr/*`
   `/System/*` 标红;`Edit` / `Write` / `MultiEdit` / `WebFetch` 标琥珀。
-- **系统原生通知** —— 新审批 / 会话完成。
+- **系统原生通知** —— 新审批弹窗,以及每轮对话结束后的"处理完成"通知,
+  通知正文带上你刚才的提示词(过长会折叠),并行跑多个 session 时一眼
+  就能知道哪个窗口该看了。
 - **内嵌 HTTP + WebSocket server**(127.0.0.1:7788),无 Python / Node
   依赖。
 
@@ -60,7 +65,7 @@ brew install --cask cc-dashboard
 | 快捷键 | 场景 | 作用 |
 |--------|------|------|
 | ⌘↩ | 主窗口审批列表 | 全部允许 |
-| ⌘1 / ⌘2 / ⌘3 | 审批卡片 Allow 下拉 | 以 2 / 10 / 30 min 信任该 session |
+| ⌘1 / ⌘2 / ⌘3 | "永久允许 ▾" 子菜单 | 以 2 / 10 / 30 min 信任该 session |
 | ⌘Q | 菜单栏弹窗 | 退出 cc-dashboard |
 
 ## 隐私

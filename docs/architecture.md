@@ -23,13 +23,16 @@ contributors and anyone curious about the design.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/hook/session-start` · `/pre-tool-use` · `/notification` · `/stop` · `/session-end` | receive Claude CLI hook events |
-| POST | `/decision/{id}` | UI submits an approval decision (optionally with `trustMinutes` to open an auto-allow window in the same call) |
-| POST | `/trust/{sessionId}` | open auto-allow for a session standalone (body: `{"minutes": N}`) |
-| DELETE | `/trust/{sessionId}` | cancel auto-allow |
+| POST | `/hook/session-start` · `/pre-tool-use` · `/notification` · `/stop` · `/session-end` · `/user-prompt-submit` | receive Claude CLI hook events |
+| POST | `/decision/{id}` | UI submits an approval decision (optionally with `trustMinutes` for a time-boxed auto-allow window or `trustForever: true` for permanent trust, applied in the same call) |
+| POST | `/trust/{sessionId}` | open time-boxed auto-allow standalone (body: `{"minutes": N}`) |
+| POST | `/trust/{sessionId}/forever` | pin the session for permanent auto-allow |
+| DELETE | `/trust/{sessionId}` | cancel auto-allow (clears persisted entry too) |
+| PUT | `/sessions/{id}/alias` | set / clear the human-readable alias for a session |
+| DELETE | `/sessions/{id}/alias` | clear the alias |
 | GET | `/sessions` · `/approvals` | snapshot queries |
 | GET | `/health` | health check |
-| WS | `/ws` | real-time event stream: `snapshot` · `session_upsert` · `session_remove` · `session_finished` · `approval_add` · `approval_resolve` · `auto_allow_set` · `auto_allow_cleared` |
+| WS | `/ws` | real-time event stream: `snapshot` · `session_upsert` · `session_remove` · `session_finished` · `turn_complete` · `approval_add` · `approval_resolve` · `auto_allow_set` · `auto_allow_forever_set` · `auto_allow_cleared` · `session_alias_changed` |
 
 ## How the hook works
 
@@ -45,8 +48,9 @@ contributors and anyone curious about the design.
    → the server resumes the suspended request.
 5. The hook prints `{"hookSpecificOutput":{"permissionDecision":"allow|deny"}}`
    to stdout; Claude CLI proceeds accordingly.
-6. If the session is inside an auto-allow window, step 3 is skipped — the
-   server returns `allow` immediately.
+6. If the session has an active auto-allow window (time-boxed or
+   permanent), step 3 is skipped — the server returns `allow`
+   immediately.
 
 **No approval timeout**: the server holds the request until the UI decides.
 It never auto-denies (this avoids the "I clicked Allow but got denied"
@@ -60,9 +64,22 @@ bump both `PreToolUse.timeout` in `~/.claude/settings.json` (currently
 605s) and `--max-time` in `hooks/pretool.sh` (currently 600s) together.
 
 **Lifecycle hooks** (`SessionStart` / `Stop` / `SessionEnd` /
-`Notification`): `hooks/lifecycle.sh` is fire-and-forget, waits at most 3s,
-always exits 0 — it never blocks the CLI. Finished sessions disappear from
-the UI 10 seconds after completion.
+`Notification` / `UserPromptSubmit`): `hooks/lifecycle.sh` is
+fire-and-forget, waits at most 3s, always exits 0 — it never blocks the
+CLI. `UserPromptSubmit` records the user's prompt so the "Reply ready"
+banner posted on `Stop` can show it as the body. The `Stop` banner is
+debounced by 2 s and cancelled by any incoming `PreToolUse` or new
+`UserPromptSubmit` (Claude Code's `Stop` can fire mid-turn under agentic
+continuation; debouncing avoids ghost banners). Finished sessions
+disappear from the UI 10 seconds after `SessionEnd`.
+
+**Trust persistence**: both time-boxed and permanent trust are persisted
+in `UserDefaults` keyed by project directory (cwd), since session IDs
+are ephemeral. When a new Claude session starts in a trusted cwd, the
+trust auto-applies before the first approval is requested; expired
+time-boxed entries are garbage-collected on launch. Cancelling trust
+(`DELETE /trust/{sessionId}`, the "×" badge, or the right-click menu)
+clears the persisted entry.
 
 ## Where hooks land
 

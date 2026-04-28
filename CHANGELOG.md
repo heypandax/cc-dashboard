@@ -16,6 +16,35 @@ Versioning][semver].
   every subsequent tool call from that session until the user cancels
   or the app quits. The session row badge renders ∞ in amber when
   permanently trusted (vs. the mint countdown for time-boxed windows).
+- Per-turn completion notifications. When Claude finishes responding in
+  a session (Stop hook), cc-dashboard now posts a banner with the user's
+  prompt as the body — folded to ~140 chars for long prompts. The
+  previous "session ended" banner has been removed (it fired only when
+  the whole CLI exited, which is the noisier and less useful signal).
+  A new `UserPromptSubmit` hook is registered automatically; existing
+  installs upgrade their `~/.claude/settings.json` on next launch.
+- Trust persistence. Both "Trust forever" and time-boxed grants now
+  survive app quit / restart — keyed by project directory (cwd), since
+  session IDs are ephemeral. When a new Claude session starts in a
+  trusted cwd, the trust auto-applies; expired time-boxed entries are
+  garbage-collected on launch. Cancelling trust ("×" on the badge,
+  right-click menu, or DELETE /trust) clears the persisted entry.
+
+### Changed
+- Turn-complete notification is now debounced by 2 seconds. Claude Code's
+  `Stop` hook can fire mid-turn under some conditions (agentic
+  continuation, extended-thinking checkpoints — the public docs don't
+  guarantee a single fire per turn). The banner now posts only after
+  the session has been quiet for 2 s; any incoming `PreToolUse` or new
+  `UserPromptSubmit` cancels the pending banner. UI status (`.idle`)
+  still updates immediately for responsiveness.
+- Approval card layout: "Trust forever" is now a top-level button next
+  to "Allow" (instead of being one of several entries inside the
+  "Allow ▾" popover). The two confirm-style actions sit on the left,
+  "Deny" is pushed to the far right so a misclick is harder. The ▾
+  attached to "Trust forever" still opens the time-boxed presets
+  (2 / 10 / 30 min, custom). Same layout for the menu-bar approval card
+  and the main-window queue.
 
 ## [0.1.4] — 2026-04-24
 

@@ -50,14 +50,20 @@ Requires **macOS 14+**.
 - **Main window** with session list (left) and approval queue (right);
   tool inputs are collapsible and the card edge is colored by risk.
 - **Auto-allow (temporary trust)** — each approval offers "Allow for
-  2 / 10 / 30 min"; subsequent `PreToolUse` calls from the same session
-  pass through automatically within the window. Sidebar row shows a live
-  countdown + cancel button.
+  2 / 10 / 30 min" or a custom duration up to 24 h; subsequent
+  `PreToolUse` calls from the same session pass through automatically
+  within the window. Sidebar row shows a live countdown + cancel button.
+- **Trust forever** — a top-level button next to "Allow" pins the
+  session for unlimited auto-approval until you cancel it. Both trust
+  modes persist across app quit / restart, keyed by project directory.
 - **Allow all** (⌘↩) clears every pending approval at once.
 - **Risk hints** — `rm -rf` / `sudo` / `curl | sh` / `/etc/*` `/usr/*`
   `/System/*` get a red edge; write-capable tools (`Edit` / `Write` /
   `MultiEdit` / `WebFetch`) get amber.
-- **Native notifications** for incoming approvals and finished sessions.
+- **Native notifications** for incoming approvals, plus a "Reply ready"
+  banner when a session finishes a turn — body shows your prompt
+  (folded for long ones) so you can pick the right window when several
+  sessions are running in parallel.
 - **Embedded HTTP + WebSocket server** on `127.0.0.1:7788` — no Python /
   Node dependency.
 
@@ -66,7 +72,7 @@ Requires **macOS 14+**.
 | Shortcut | Context | Action |
 |----------|---------|--------|
 | ⌘↩ | main window approvals | Allow all pending |
-| ⌘1 / ⌘2 / ⌘3 | approval card Allow dropdown | trust this session for 2 / 10 / 30 min |
+| ⌘1 / ⌘2 / ⌘3 | "Trust forever ▾" submenu | trust this session for 2 / 10 / 30 min |
 | ⌘Q | menu bar popover | Quit cc-dashboard |
 
 ## Privacy
