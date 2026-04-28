@@ -47,7 +47,7 @@
 
 /* System notifications (Notifier.swift) */
 "Claude Code · Approval needed" = "Claude Code · Approval needed";
-"Claude Code · Session done" = "Claude Code · Session done";
+"Claude Code · Reply ready" = "Claude Code · Reply ready";
 "Tool: %@" = "Tool: %@";
 
 /* Session row context menu + inline rename */

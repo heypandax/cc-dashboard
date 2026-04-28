@@ -94,6 +94,16 @@ final class HooksInstallerTests: XCTestCase {
         XCTAssertNotNil(hooks["SessionEnd"])
         XCTAssertNotNil(hooks["Notification"])
 
+        // cc-dashboard 自己的 user-prompt-submit lifecycle 已注册(对话回合通知数据源)
+        let upsList = (hooks["UserPromptSubmit"] as? [[String: Any]]) ?? []
+        let upsCommands = upsList.flatMap { entry -> [String] in
+            ((entry["hooks"] as? [[String: Any]]) ?? []).compactMap { $0["command"] as? String }
+        }
+        XCTAssertTrue(
+            upsCommands.contains { $0.contains("user-prompt-submit") },
+            "cc-dashboard UserPromptSubmit hook 应已注册,实得 \(upsCommands)"
+        )
+
         // 备份文件存在
         let dir = URL(fileURLWithPath: settingsPath).deletingLastPathComponent()
         let contents = try FileManager.default.contentsOfDirectory(atPath: dir.path)

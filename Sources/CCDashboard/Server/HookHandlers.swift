@@ -61,15 +61,26 @@ struct HookHandlers: Sendable {
         return HookAckResponse(ok: true)
     }
 
-    // MARK: - Stop
+    // MARK: - Stop(单回合完成)
     func stop(_ input: HookInput) async -> HookAckResponse {
-        await store.touchSession(id: input.sessionID, status: .idle)
+        await store.markTurnComplete(sessionID: input.sessionID, cwd: input.cwd)
         return HookAckResponse(ok: true)
     }
 
     // MARK: - SessionEnd
     func sessionEnd(_ input: HookInput) async -> HookAckResponse {
         await store.markSessionDone(id: input.sessionID)
+        return HookAckResponse(ok: true)
+    }
+
+    // MARK: - UserPromptSubmit(缓存 prompt 供 Stop 通知使用)
+    func userPromptSubmit(_ input: HookInput) async -> HookAckResponse {
+        let preview = String((input.prompt ?? "").prefix(80)).replacingOccurrences(of: "\n", with: "\\n")
+        Log.session.info("hook user-prompt-submit session=\(input.sessionID, privacy: .public) len=\(input.prompt?.count ?? 0) preview=\"\(preview, privacy: .public)\"")
+        guard let prompt = input.prompt, !prompt.isEmpty else {
+            return HookAckResponse(ok: true)
+        }
+        await store.recordUserPrompt(sessionID: input.sessionID, cwd: input.cwd, prompt: prompt)
         return HookAckResponse(ok: true)
     }
 

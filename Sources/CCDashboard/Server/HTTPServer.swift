@@ -46,6 +46,10 @@ struct DashboardHTTPServer: Sendable {
             let input = try await request.decode(as: HookInput.self, context: context)
             return await hooks.sessionEnd(input)
         }
+        router.post("/hook/user-prompt-submit") { request, context -> HookAckResponse in
+            let input = try await request.decode(as: HookInput.self, context: context)
+            return await hooks.userPromptSubmit(input)
+        }
 
         // Decision from UI
         router.post("/decision/:id") { request, context -> HookAckResponse in

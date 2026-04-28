@@ -82,6 +82,8 @@ struct HookInput: Codable, Sendable {
     let permissionMode: String?
     let toolName: String?
     let toolInput: [String: AnyCodable]?
+    /// UserPromptSubmit hook payload 顶层字段。其他 hook 不带,缺省 nil。
+    let prompt: String?
 
     enum CodingKeys: String, CodingKey {
         case sessionID = "session_id"
@@ -91,6 +93,7 @@ struct HookInput: Codable, Sendable {
         case permissionMode = "permission_mode"
         case toolName = "tool_name"
         case toolInput = "tool_input"
+        case prompt
     }
 }
 
@@ -154,6 +157,9 @@ enum DashboardEvent: Sendable {
     case sessionUpsert(SessionState)
     case sessionRemove(String)
     case sessionFinished(SessionState)
+    /// 单次对话回合完成 —— Stop hook 触发。`prompt` 是当前回合用户提交的内容(可能 nil,
+    /// 例如 hook 重放 / Claude 内部自驱动 turn / SessionStart 后立刻 Stop)。供通知层展示。
+    case turnComplete(session: SessionState, prompt: String?)
     case approvalAdd(ApprovalRequest)
     case approvalResolve(String)
     case autoAllowSet(sessionId: String, until: Date)
@@ -165,7 +171,7 @@ enum DashboardEvent: Sendable {
 
 extension DashboardEvent: Encodable {
     private enum CodingKeys: String, CodingKey {
-        case type, session, sessionId, approval, approvalId, sessions, approvals, until, alias
+        case type, session, sessionId, approval, approvalId, sessions, approvals, until, alias, prompt
     }
 
     func encode(to encoder: Encoder) throws {
@@ -180,6 +186,10 @@ extension DashboardEvent: Encodable {
         case .sessionFinished(let s):
             try c.encode("session_finished", forKey: .type)
             try c.encode(s, forKey: .session)
+        case .turnComplete(let s, let prompt):
+            try c.encode("turn_complete", forKey: .type)
+            try c.encode(s, forKey: .session)
+            try c.encodeIfPresent(prompt, forKey: .prompt)
         case .approvalAdd(let a):
             try c.encode("approval_add", forKey: .type)
             try c.encode(a, forKey: .approval)

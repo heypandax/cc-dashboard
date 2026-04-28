@@ -16,7 +16,7 @@ final class EndToEndFlowTests: XCTestCase {
     }
 
     func testFullHookLifecycle() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         let server = DashboardHTTPServer(store: store, port: 0)
         try await server.buildApplication().test(.live) { client in
             // 1) session-start → session 注册

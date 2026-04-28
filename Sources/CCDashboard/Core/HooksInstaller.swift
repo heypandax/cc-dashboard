@@ -80,14 +80,29 @@ struct HooksInstaller {
         "\(Self.shellQuote(lifecyclePath)) \(subcommand)"
     }
 
+    /// 严格匹配 quoted 形式:unquoted 的会被 isCCDashboardCommand 识别为 legacy 清理并重装。
+    /// 任一期望 hook 缺失(比如新版引入的 UserPromptSubmit 在老 settings.json 里没有)→
+    /// 走 strip+重装路径(幂等)。否则老用户升级后拿不到新 hook。
     private func isAlreadyInstalled(hooks: [String: Any]) -> Bool {
-        let pretools = (hooks["PreToolUse"] as? [[String: Any]]) ?? []
-        let commands = pretools.flatMap { entry -> [String] in
+        let expectations: [(event: String, command: String)] = [
+            ("PreToolUse",       pretoolCommand),
+            ("SessionStart",     lifecycleCommand("session-start")),
+            ("Stop",             lifecycleCommand("stop")),
+            ("SessionEnd",       lifecycleCommand("session-end")),
+            ("Notification",     lifecycleCommand("notification")),
+            ("UserPromptSubmit", lifecycleCommand("user-prompt-submit")),
+        ]
+        return expectations.allSatisfy { exp in
+            commandsForEvent(hooks: hooks, event: exp.event).contains(exp.command)
+        }
+    }
+
+    private func commandsForEvent(hooks: [String: Any], event: String) -> [String] {
+        let entries = (hooks[event] as? [[String: Any]]) ?? []
+        return entries.flatMap { entry -> [String] in
             let inner = (entry["hooks"] as? [[String: Any]]) ?? []
             return inner.compactMap { $0["command"] as? String }
         }
-        // 严格匹配 quoted 形式:unquoted 的会被 isCCDashboardCommand 识别为 legacy 清理并重装
-        return commands.contains(pretoolCommand)
     }
 
     // MARK: - File sync
@@ -192,6 +207,8 @@ struct HooksInstaller {
                    command: lifecycleCommand("session-end"), timeout: 10)
         appendHook(&hooks, event: "Notification", matcher: nil,
                    command: lifecycleCommand("notification"), timeout: 10)
+        appendHook(&hooks, event: "UserPromptSubmit", matcher: nil,
+                   command: lifecycleCommand("user-prompt-submit"), timeout: 10)
     }
 
     private func appendHook(

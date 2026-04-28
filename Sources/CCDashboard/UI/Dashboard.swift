@@ -71,8 +71,10 @@ final class Dashboard {
             withAnimation(.easeOut(duration: 0.25)) {
                 sessions.removeAll { $0.id == id }
             }
-        case .sessionFinished(let s):
-            notifier.notifySessionDone(s)
+        case .sessionFinished:
+            break  // 整会话退出本身不弹横幅 —— 噪音。需要"完成感"通知请走 .turnComplete(每回合一条)。
+        case .turnComplete(let s, let prompt):
+            notifier.notifyTurnComplete(s, prompt: prompt)
         case .approvalAdd(let a):
             withAnimation(.easeIn(duration: 0.2)) {
                 approvals.append(a)

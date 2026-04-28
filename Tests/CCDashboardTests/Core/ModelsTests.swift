@@ -117,6 +117,8 @@ final class ModelsTests: XCTestCase {
             (.sessionUpsert(session),                                       "session_upsert"),
             (.sessionRemove("s1"),                                          "session_remove"),
             (.sessionFinished(session),                                     "session_finished"),
+            (.turnComplete(session: session, prompt: "hi"),                 "turn_complete"),
+            (.turnComplete(session: session, prompt: nil),                  "turn_complete"),
             (.approvalAdd(approval),                                        "approval_add"),
             (.approvalResolve("a1"),                                        "approval_resolve"),
             (.autoAllowSet(sessionId: "s1", until: fixedDate),              "auto_allow_set"),
@@ -164,6 +166,43 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(obj["type"] as? String, "auto_allow_forever_set")
         XCTAssertEqual(obj["sessionId"] as? String, "s1")
         XCTAssertNil(obj["until"], "forever 事件不应携带 until")
+    }
+
+    // MARK: - turnComplete:prompt 非 nil 带字段,nil 省字段
+
+    func testDashboardEventTurnCompleteShape() throws {
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let session = SessionState(
+            id: "s1", cwd: "/tmp", status: .idle,
+            startedAt: date, lastActivityAt: date,
+            transcriptPath: nil, lastTool: nil, lastNotification: nil,
+            autoAllowUntil: nil, alias: nil
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+
+        let withPrompt = DashboardEvent.turnComplete(session: session, prompt: "fix the build")
+        let d1 = try encoder.encode(withPrompt)
+        let obj1 = try XCTUnwrap(try JSONSerialization.jsonObject(with: d1) as? [String: Any])
+        XCTAssertEqual(obj1["type"] as? String, "turn_complete")
+        XCTAssertEqual(obj1["prompt"] as? String, "fix the build")
+        XCTAssertNotNil(obj1["session"])
+
+        let noPrompt = DashboardEvent.turnComplete(session: session, prompt: nil)
+        let d2 = try encoder.encode(noPrompt)
+        let obj2 = try XCTUnwrap(try JSONSerialization.jsonObject(with: d2) as? [String: Any])
+        XCTAssertEqual(obj2["type"] as? String, "turn_complete")
+        XCTAssertNil(obj2["prompt"], "prompt=nil 走 encodeIfPresent")
+    }
+
+    // MARK: - HookInput:UserPromptSubmit 顶层 prompt 字段解码
+
+    func testHookInputDecodesUserPromptSubmit() throws {
+        let json = #"{"session_id":"s1","cwd":"/tmp","hook_event_name":"UserPromptSubmit","prompt":"refactor it"}"#
+        let input = try JSONDecoder().decode(HookInput.self, from: Data(json.utf8))
+        XCTAssertEqual(input.prompt, "refactor it")
+        XCTAssertEqual(input.sessionID, "s1")
     }
 
     // MARK: - sessionAliasChanged:alias 非 nil 带字段,nil 省字段

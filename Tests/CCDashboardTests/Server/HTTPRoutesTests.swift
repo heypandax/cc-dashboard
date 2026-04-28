@@ -16,7 +16,7 @@ final class HTTPRoutesTests: XCTestCase {
     // MARK: - /health
 
     func testHealthEndpoint() async throws {
-        let server = DashboardHTTPServer(store: SessionStore(), port: 0)
+        let server = DashboardHTTPServer(store: makeStore(), port: 0)
         try await server.buildApplication().test(.live) { client in
             try await client.execute(uri: "/health", method: .get) { response in
                 XCTAssertEqual(response.status, .ok)
@@ -28,7 +28,7 @@ final class HTTPRoutesTests: XCTestCase {
     // MARK: - POST /hook/session-start → GET /sessions
 
     func testSessionStartThenListSessions() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         let server = DashboardHTTPServer(store: store, port: 0)
         try await server.buildApplication().test(.live) { client in
             let body = ByteBuffer(string: #"""
@@ -53,7 +53,7 @@ final class HTTPRoutesTests: XCTestCase {
     // MARK: - POST /trust/:sid → autoAllowUntil 非空
 
     func testTrustEndpointSetsAutoAllow() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         let server = DashboardHTTPServer(store: store, port: 0)
         try await server.buildApplication().test(.live) { client in
             _ = try await client.execute(
@@ -78,7 +78,7 @@ final class HTTPRoutesTests: XCTestCase {
     // MARK: - POST /trust/:sid/forever → autoAllowForever = true
 
     func testTrustForeverEndpointSetsForeverFlag() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         let server = DashboardHTTPServer(store: store, port: 0)
         try await server.buildApplication().test(.live) { client in
             _ = try await client.execute(
@@ -100,10 +100,40 @@ final class HTTPRoutesTests: XCTestCase {
         }
     }
 
+    // MARK: - POST /hook/user-prompt-submit → /hook/stop 后 session.idle
+
+    func testUserPromptSubmitThenStopSetsIdle() async throws {
+        let store = makeStore()
+        let server = DashboardHTTPServer(store: store, port: 0)
+        try await server.buildApplication().test(.live) { client in
+            _ = try await client.execute(
+                uri: "/hook/session-start", method: .post,
+                body: ByteBuffer(string: #"{"session_id": "s-tc", "cwd": "/"}"#)
+            )
+
+            try await client.execute(
+                uri: "/hook/user-prompt-submit", method: .post,
+                body: ByteBuffer(string: #"{"session_id": "s-tc", "cwd": "/", "prompt": "go"}"#)
+            ) { r in XCTAssertEqual(r.status, .ok) }
+
+            try await client.execute(
+                uri: "/hook/stop", method: .post,
+                body: ByteBuffer(string: #"{"session_id": "s-tc", "cwd": "/"}"#)
+            ) { r in XCTAssertEqual(r.status, .ok) }
+
+            try await client.execute(uri: "/sessions", method: .get) { r in
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let sessions = try decoder.decode([SessionState].self, from: Data(buffer: r.body))
+                XCTAssertEqual(sessions.first?.status, .idle)
+            }
+        }
+    }
+
     // MARK: - DELETE /trust/:sid → autoAllowUntil 清空
 
     func testTrustEndpointClearsAutoAllow() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         let server = DashboardHTTPServer(store: store, port: 0)
         try await server.buildApplication().test(.live) { client in
             _ = try await client.execute(
@@ -215,7 +245,7 @@ final class HTTPRoutesTests: XCTestCase {
     // MARK: - GET /approvals shape 合约
 
     func testApprovalsEndpointShape() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
 
         let pendingTask = Task { [store] in

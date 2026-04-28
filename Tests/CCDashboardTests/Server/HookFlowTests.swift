@@ -16,14 +16,15 @@ final class HookFlowTests: XCTestCase {
     }
 
     func testPreToolUseBlocksUntilDecision() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         let handlers = HookHandlers(store: store)
 
         let input = HookInput(
             sessionID: "s-block", cwd: "/tmp",
             hookEventName: "PreToolUse", transcriptPath: nil,
             permissionMode: nil, toolName: "Bash",
-            toolInput: ["command": AnyCodable("ls")]
+            toolInput: ["command": AnyCodable("ls")],
+            prompt: nil
         )
 
         let hookTask = Task { () -> String in
@@ -44,13 +45,14 @@ final class HookFlowTests: XCTestCase {
     }
 
     func testPreToolUseMissingToolNameDenies() async {
-        let store = SessionStore()
+        let store = makeStore()
         let handlers = HookHandlers(store: store)
 
         let input = HookInput(
             sessionID: "s-invalid", cwd: "/tmp",
             hookEventName: "PreToolUse", transcriptPath: nil,
-            permissionMode: nil, toolName: nil, toolInput: nil
+            permissionMode: nil, toolName: nil, toolInput: nil,
+            prompt: nil
         )
         let output = await handlers.preToolUse(input)
 

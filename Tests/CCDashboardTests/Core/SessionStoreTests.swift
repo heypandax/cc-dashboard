@@ -12,7 +12,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - upsertSession 新建
 
     func testUpsertSessionNewCreatesRunningWithoutAutoAllow() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         let stream = await store.subscribe()
         var iter = stream.makeAsyncIterator()
         _ = await iter.next()  // snapshot
@@ -32,7 +32,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - upsertSession 同 id:保留 startedAt
 
     func testUpsertSessionExistingPreservesStartedAt() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/first", transcriptPath: nil)
         let firstList = await store.allSessions()
         let first = try XCTUnwrap(firstList.first)
@@ -51,7 +51,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - touchSession 未知 id:创建占位
 
     func testTouchSessionCreatesPlaceholderForUnknownID() async {
-        let store = SessionStore()
+        let store = makeStore()
         await store.touchSession(id: "ghost", cwd: "/tmp")
         let sessions = await store.allSessions()
         XCTAssertEqual(sessions.count, 1)
@@ -62,7 +62,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - requestApproval miss → 入 pending → resolveApproval 唤醒
 
     func testRequestApprovalMissEnqueuesAndResolves() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
 
         let request = ApprovalRequest(
@@ -88,7 +88,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - setAutoAllow 排空同 session 的 pending 审批
 
     func testSetAutoAllowResolvesAlreadyPendingApprovals() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
 
         // 两笔 pending(来自同一 session)在信任开窗之前已排队
@@ -120,7 +120,7 @@ final class SessionStoreTests: XCTestCase {
     }
 
     func testSetAutoAllowDoesNotTouchOtherSessionsApprovals() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
         await store.upsertSession(id: "s2", cwd: "/", transcriptPath: nil)
 
@@ -142,10 +142,223 @@ final class SessionStoreTests: XCTestCase {
         _ = await decisionOther
     }
 
+    // MARK: - 信任持久化:setAutoAllowForever 写盘,新进程下新 session 进同 cwd 自动套上
+
+    func testTrustForeverPersistsAndRestoresOnNewSession() async throws {
+        let sharedDefaults = isolatedDefaults()
+        let store1 = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: TrustStore(defaults: sharedDefaults)
+        )
+        await store1.upsertSession(id: "s1", cwd: "/proj-x", transcriptPath: nil)
+        await store1.setAutoAllowForever(sessionID: "s1")
+
+        // 模拟"重启"—— 拿同一 UserDefaults 起一个新 SessionStore
+        let store2 = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: TrustStore(defaults: sharedDefaults)
+        )
+        await store2.upsertSession(id: "s2-fresh", cwd: "/proj-x", transcriptPath: nil)
+
+        let sessions = await store2.allSessions()
+        let restored = try XCTUnwrap(sessions.first { $0.id == "s2-fresh" })
+        XCTAssertTrue(restored.autoAllowForever, "新 session 进同 cwd 应自动套上 forever 信任")
+    }
+
+    // MARK: - 信任持久化:time-boxed 未过期 → 新 session 拿到剩余时长
+
+    func testTrustTimeBoxedPersistsAndRestoresWithRemaining() async throws {
+        let sharedDefaults = isolatedDefaults()
+        let store1 = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: TrustStore(defaults: sharedDefaults)
+        )
+        await store1.upsertSession(id: "s1", cwd: "/proj-y", transcriptPath: nil)
+        await store1.setAutoAllow(sessionID: "s1", minutes: 30)
+
+        let store2 = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: TrustStore(defaults: sharedDefaults)
+        )
+        await store2.upsertSession(id: "s2-fresh", cwd: "/proj-y", transcriptPath: nil)
+
+        let sessions = await store2.allSessions()
+        let restored = try XCTUnwrap(sessions.first { $0.id == "s2-fresh" })
+        XCTAssertNotNil(restored.autoAllowUntil, "新 session 应继承 time-boxed 信任")
+        XCTAssertFalse(restored.autoAllowForever)
+    }
+
+    // MARK: - 信任持久化:已过期 time-boxed → 不恢复 + 清持久层
+
+    func testTrustTimeBoxedExpiredOnLoadIsDropped() async throws {
+        let sharedDefaults = isolatedDefaults()
+        let trustStore = TrustStore(defaults: sharedDefaults)
+        // 直接写一条已过期的条目
+        trustStore.setUntil(cwd: "/proj-old", until: Date(timeIntervalSinceNow: -3600))
+
+        let store = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: trustStore
+        )
+        await store.upsertSession(id: "s1", cwd: "/proj-old", transcriptPath: nil)
+
+        let sessions = await store.allSessions()
+        let s = try XCTUnwrap(sessions.first)
+        XCTAssertNil(s.autoAllowUntil, "过期条目不应恢复")
+        XCTAssertFalse(s.autoAllowForever)
+
+        // 持久层也应被 GC
+        XCTAssertNil(trustStore.loadAll()["/proj-old"], "init 阶段应顺手清掉过期条目")
+    }
+
+    // MARK: - 信任持久化:touchSession 先于 upsertSession 创建占位时,upsertSession 仍能恢复信任
+
+    func testTrustForeverRestoredEvenWhenTouchSessionPreemptsUpsert() async throws {
+        let sharedDefaults = isolatedDefaults()
+        // 第一次:set forever 写盘
+        let store1 = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: TrustStore(defaults: sharedDefaults),
+            turnCompleteDebounceSeconds: 0
+        )
+        await store1.upsertSession(id: "old-session", cwd: "/proj-race", transcriptPath: nil)
+        await store1.setAutoAllowForever(sessionID: "old-session")
+
+        // 模拟"重启 + Claude 已有 session 抢先发了 UserPromptSubmit / Notification"
+        // —— UserPromptSubmit handler 内部走 touchSession 建占位,此时还没 upsertSession。
+        let store2 = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: TrustStore(defaults: sharedDefaults),
+            turnCompleteDebounceSeconds: 0
+        )
+        await store2.recordUserPrompt(sessionID: "running-sid", cwd: "/proj-race", prompt: "go")
+        // 此时 sessions["running-sid"] 是占位,无信任
+        let beforeUpsert = await store2.allSessions().first { $0.id == "running-sid" }
+        XCTAssertNotNil(beforeUpsert)
+        XCTAssertFalse(beforeUpsert?.autoAllowForever ?? true)
+
+        // PreToolUse 才到 → upsertSession 应补查持久层
+        await store2.upsertSession(id: "running-sid", cwd: "/proj-race", transcriptPath: nil)
+
+        let afterUpsert = await store2.allSessions().first { $0.id == "running-sid" }
+        XCTAssertEqual(afterUpsert?.autoAllowForever, true, "occupant 占位后 upsertSession 仍应补恢复信任")
+    }
+
+    // MARK: - 信任持久化:clearAutoAllow 同步清持久层
+
+    func testClearAutoAllowAlsoClearsPersistence() async throws {
+        let sharedDefaults = isolatedDefaults()
+        let trustStore = TrustStore(defaults: sharedDefaults)
+        let store = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: trustStore
+        )
+        await store.upsertSession(id: "s1", cwd: "/proj-z", transcriptPath: nil)
+        await store.setAutoAllowForever(sessionID: "s1")
+        XCTAssertNotNil(trustStore.loadAll()["/proj-z"])
+
+        await store.clearAutoAllow(sessionID: "s1")
+        XCTAssertNil(trustStore.loadAll()["/proj-z"], "用户取消信任应同时清持久层")
+    }
+
+    // MARK: - turn-complete:Stop 广播带最近 prompt
+
+    func testMarkTurnCompleteBroadcastsRecordedPrompt() async throws {
+        let store = makeStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()  // snapshot
+
+        await store.recordUserPrompt(sessionID: "s1", cwd: "/", prompt: "do the thing")
+        // recordUserPrompt 内部 touchSession,先消耗那条 sessionUpsert
+        _ = await iter.next()
+
+        await store.markTurnComplete(sessionID: "s1", cwd: nil)
+
+        // markTurnComplete 先 touchSession(.idle) → sessionUpsert,再广播 turnComplete
+        guard case .sessionUpsert(let s) = await iter.next() else {
+            return XCTFail("expected .sessionUpsert first")
+        }
+        XCTAssertEqual(s.status, .idle)
+
+        guard case .turnComplete(let tcSession, let prompt) = await iter.next() else {
+            return XCTFail("expected .turnComplete second")
+        }
+        XCTAssertEqual(tcSession.id, "s1")
+        XCTAssertEqual(prompt, "do the thing")
+    }
+
+    // MARK: - turn-complete:无 prompt 时 prompt=nil
+
+    func testMarkTurnCompleteWithoutRecordedPromptYieldsNil() async throws {
+        let store = makeStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()  // snapshot(已含 s1)—— upsert 在 subscribe 之前触发,不进 stream
+
+        await store.markTurnComplete(sessionID: "s1", cwd: nil)
+        _ = await iter.next()  // sessionUpsert(.idle)
+        guard case .turnComplete(_, let prompt) = await iter.next() else {
+            return XCTFail("expected .turnComplete")
+        }
+        XCTAssertNil(prompt)
+    }
+
+    // MARK: - turn-complete:消费后 prompt 被清,下次 Stop 无 prompt 时不复用
+
+    func testMarkTurnCompleteClearsPromptAfterBroadcast() async throws {
+        let store = makeStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.recordUserPrompt(sessionID: "s1", cwd: "/", prompt: "first")
+
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()  // snapshot
+
+        // 第一次 Stop —— 带上 prompt
+        await store.markTurnComplete(sessionID: "s1", cwd: nil)
+        _ = await iter.next()  // sessionUpsert
+        guard case .turnComplete(_, let p1) = await iter.next() else {
+            return XCTFail("expected first .turnComplete")
+        }
+        XCTAssertEqual(p1, "first")
+
+        // 第二次 Stop(没新 prompt)—— 不复用旧的
+        await store.markTurnComplete(sessionID: "s1", cwd: nil)
+        _ = await iter.next()  // sessionUpsert
+        guard case .turnComplete(_, let p2) = await iter.next() else {
+            return XCTFail("expected second .turnComplete")
+        }
+        XCTAssertNil(p2, "消费后 prompt 应被清,下次 Stop 不应该看到旧 prompt")
+    }
+
+    // MARK: - turn-complete:多次 prompt,Stop 取最新
+
+    func testRecordUserPromptLatestWins() async throws {
+        let store = makeStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+
+        await store.recordUserPrompt(sessionID: "s1", cwd: "/", prompt: "first")
+        await store.recordUserPrompt(sessionID: "s1", cwd: "/", prompt: "second")
+
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()  // snapshot
+
+        await store.markTurnComplete(sessionID: "s1", cwd: nil)
+        _ = await iter.next()  // sessionUpsert
+        guard case .turnComplete(_, let prompt) = await iter.next() else {
+            return XCTFail("expected .turnComplete")
+        }
+        XCTAssertEqual(prompt, "second")
+    }
+
     // MARK: - 永久信任:set forever 排空同 session 的 pending 审批
 
     func testSetAutoAllowForeverDrainsPendingApprovals() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
 
         let req = ApprovalRequest(
@@ -166,7 +379,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - 永久信任:后续请求命中 auto-allow
 
     func testTrustForeverEnablesSubsequentAutoAllow() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
         await store.setAutoAllowForever(sessionID: "s1")
 
@@ -184,7 +397,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - 永久信任:resolveApproval(trustForever: true) 触发设置
 
     func testResolveApprovalWithTrustForeverSetsFlag() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
 
         let req = ApprovalRequest(
@@ -205,7 +418,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - 永久信任:clearAutoAllow 清掉 forever 标志
 
     func testClearAutoAllowClearsForeverFlag() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
         await store.setAutoAllowForever(sessionID: "s1")
 
@@ -231,7 +444,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - 永久信任 vs. time-boxed:互相覆盖
 
     func testSetAutoAllowForeverClearsTimeBoxed() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
         await store.setAutoAllow(sessionID: "s1", minutes: 30)
 
@@ -243,7 +456,7 @@ final class SessionStoreTests: XCTestCase {
     }
 
     func testSetAutoAllowClearsForever() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
         await store.setAutoAllowForever(sessionID: "s1")
 
@@ -257,7 +470,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - 永久信任:广播 .autoAllowForeverSet 事件
 
     func testSetAutoAllowForeverBroadcastsEvent() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
 
         let stream = await store.subscribe()
@@ -282,7 +495,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - trustMinutes > 0 后续请求命中 auto-allow
 
     func testTrustMinutesEnablesSubsequentAutoAllow() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
 
         let req1 = ApprovalRequest(
@@ -309,7 +522,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - subscribe 首条事件是 snapshot
 
     func testSubscribeYieldsSnapshotFirst() async throws {
-        let store = SessionStore()
+        let store = makeStore()
         await store.upsertSession(id: "pre-existing", cwd: "/", transcriptPath: nil)
 
         let stream = await store.subscribe()
