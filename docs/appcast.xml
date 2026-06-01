@@ -8,6 +8,17 @@
         <description>macOS menu bar companion for concurrent Claude Code sessions</description>
         <language>en</language>
         <item>
+            <title>Version 0.2.2</title>
+            <pubDate>Mon, 01 Jun 2026 09:54:19 +0000</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/heypandax/cc-dashboard/releases/download/v0.2.2/cc-dashboard.dmg"
+                type="application/octet-stream"
+                sparkle:edSignature="XqKYput64dXOSKtVMhTx/StDAXfhuHZZn7l+56JQjQu7sOtO0QaEjMpJwXpXWuZpccksobX4nyCXreSEbxsNCA==" length="10728766" />
+        </item>
+        <item>
             <title>Version 0.2.1</title>
             <pubDate>Mon, 01 Jun 2026 06:46:14 +0000</pubDate>
             <sparkle:version>12</sparkle:version>

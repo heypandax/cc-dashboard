@@ -9,8 +9,8 @@
 # 每次发新版:更新 version + sha256(DMG 的 shasum -a 256),commit + push tap repo 即可。
 
 cask "cc-dashboard" do
-  version "0.2.1"
-  sha256 "963113903361c1a108843c301d20b8e908719f6c05f9474e4a7fbef01f2e4d53"
+  version "0.2.2"
+  sha256 "df6cd3a93fceaea3fe37b806408920829fd412ec35f910354d49916da30cf876"
 
   url "https://github.com/heypandax/cc-dashboard/releases/download/v#{version}/cc-dashboard.dmg"
   name "Claude Code Dashboard"
