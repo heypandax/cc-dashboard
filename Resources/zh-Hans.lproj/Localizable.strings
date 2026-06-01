@@ -79,4 +79,5 @@
 "No matches" = "无匹配结果";
 "Scanning…" = "扫描中…";
 "Refresh" = "刷新";
-"Ghostty not available — command copied to clipboard" = "Ghostty 未就绪 —— 命令已复制到剪贴板";
+"Resume command copied to clipboard — paste it into your terminal." = "已复制 resume 命令到剪贴板，粘贴到你的终端运行即可。";
+"Allow Ghostty automation in System Settings › Privacy › Automation, then retry. Command copied to clipboard." = "请在 系统设置 › 隐私与安全性 › 自动化 中允许 cc-dashboard 控制 Ghostty，然后重试。命令已复制到剪贴板。";

@@ -16,6 +16,13 @@ final class SessionBrowserModel {
     var groups: [RepoGroup] = []
     var isLoading = false
     var query = ""
+    /// 折叠状态外部化、按稳定 id(repoRoot / worktree path)管理 —— 不能用视图局部 @State:
+    /// List(.sidebar) 会虚拟化复用 row,@State 在 refresh / 滚动时会串到别的行上(层级展开错乱)。
+    /// 存"已折叠"的 id,默认不在集合里即展开,与初始全展开一致。
+    /// repo 与 worktree 必须分两个集合:主仓库的 repoRoot 等于其主 worktree 的 path(同一路径),
+    /// 合一会让仓库与主 worktree 的折叠态互相串。
+    var collapsedRepos: Set<String> = []
+    var collapsedWorktrees: Set<String> = []
     /// 短暂底部提示(如剪贴板兜底)。set 后约 3s 自动清空。
     var banner: String?
     private var bannerClearTask: Task<Void, Never>?
@@ -70,6 +77,14 @@ final class SessionBrowserModel {
 
     var totalSessionCount: Int { groups.reduce(0) { $0 + $1.sessionCount } }
 
+    // 折叠查询 / 切换 —— 手搓折叠(非 DisclosureGroup)直接读写,按稳定 id。
+    func isRepoExpanded(_ id: String) -> Bool { !collapsedRepos.contains(id) }
+    func isWorktreeExpanded(_ id: String) -> Bool { !collapsedWorktrees.contains(id) }
+
+    // formSymmetricDifference([id]):有则移除、无则插入 —— 标准 Set toggle 习语。
+    func toggleRepo(_ id: String) { collapsedRepos.formSymmetricDifference([id]) }
+    func toggleWorktree(_ id: String) { collapsedWorktrees.formSymmetricDifference([id]) }
+
     /// 用实时活跃会话(非 done)按 sessionId 叠加 `isActive`。
     private func overlayActive(_ groups: [RepoGroup]) -> [RepoGroup] {
         let activeIDs = Set((dashboard?.sessions ?? []).filter { $0.status != .done }.map(\.id))
@@ -88,17 +103,28 @@ final class SessionBrowserModel {
     }
 
     private func track(_ outcome: GhosttyLauncher.Outcome) {
-        var fellBack = 0
-        if case .copiedToClipboard = outcome { fellBack = 1 }
+        let fellBack: Int
+        switch outcome {
+        case .launched: fellBack = 0
+        case .notAuthorized, .copiedToClipboard: fellBack = 1
+        }
         Telemetry.track(.resumeFromBrowser, [.fallback: fellBack])
     }
 
     private func report(_ outcome: GhosttyLauncher.Outcome) {
-        guard case .copiedToClipboard = outcome else { return }
-        banner = String(localized: "Ghostty not available — command copied to clipboard")
+        let message: String
+        switch outcome {
+        case .launched:
+            return
+        case .notAuthorized:
+            message = String(localized: "Allow Ghostty automation in System Settings › Privacy › Automation, then retry. Command copied to clipboard.")
+        case .copiedToClipboard:
+            message = String(localized: "Resume command copied to clipboard — paste it into your terminal.")
+        }
+        banner = message
         bannerClearTask?.cancel()
         bannerClearTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
             guard !Task.isCancelled else { return }
             self?.banner = nil
         }
@@ -163,12 +189,15 @@ struct SessionBrowserView: View {
                     .foregroundStyle(.secondary)
             }
         } else {
-            List {
-                ForEach(model.filteredGroups) { repo in
-                    RepoSection(repo: repo, model: model)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 1) {
+                    ForEach(model.filteredGroups) { repo in
+                        RepoSection(repo: repo, model: model)
+                    }
                 }
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .listStyle(.sidebar)
         }
     }
 
@@ -188,18 +217,42 @@ struct SessionBrowserView: View {
 
 // MARK: - Repo / Worktree / Session rows
 
+/// 通用折叠头:chevron(随展开旋转) + 自定义 label,整行可点;`indent` 控制层级缩进。
+private struct DisclosureRow<Label: View>: View {
+    let expanded: Bool
+    let indent: CGFloat
+    let toggle: () -> Void
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
+                    .animation(.easeInOut(duration: 0.15), value: expanded)
+                    .frame(width: 10)
+                label()
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, indent)
+            .padding(.trailing, 8)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct RepoSection: View {
     let repo: RepoGroup
     let model: SessionBrowserModel
-    @State private var expanded = true
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            ForEach(repo.worktrees) { wt in
-                WorktreeSection(worktree: wt, model: model)
-            }
-        } label: {
-            HStack(spacing: 8) {
+        let expanded = model.isRepoExpanded(repo.id)
+        VStack(alignment: .leading, spacing: 1) {
+            DisclosureRow(expanded: expanded, indent: 0) { model.toggleRepo(repo.id) } label: {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(CC.indigoBot).font(.system(size: 12))
                 Text(repo.displayName).font(.system(size: 13, weight: .semibold))
@@ -211,7 +264,11 @@ private struct RepoSection: View {
                         .padding(.horizontal, 6).padding(.vertical, 1)
                         .background(Capsule().fill(Color.primary.opacity(0.06)))
                 }
-                Spacer()
+            }
+            if expanded {
+                ForEach(repo.worktrees) { wt in
+                    WorktreeSection(worktree: wt, model: model)
+                }
             }
         }
     }
@@ -220,15 +277,11 @@ private struct RepoSection: View {
 private struct WorktreeSection: View {
     let worktree: WorktreeGroup
     let model: SessionBrowserModel
-    @State private var expanded = true
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            ForEach(worktree.sessions) { s in
-                SessionArchiveRow(session: s, model: model)
-            }
-        } label: {
-            HStack(spacing: 6) {
+        let expanded = model.isWorktreeExpanded(worktree.id)
+        VStack(alignment: .leading, spacing: 1) {
+            DisclosureRow(expanded: expanded, indent: 18) { model.toggleWorktree(worktree.id) } label: {
                 Image(systemName: "arrow.triangle.branch")
                     .font(.system(size: 10)).foregroundStyle(.secondary)
                 Text(worktree.branch ?? worktree.displayName)
@@ -241,10 +294,13 @@ private struct WorktreeSection: View {
                         .padding(.horizontal, 5).padding(.vertical, 1)
                         .background(Capsule().fill(CC.amber.opacity(0.15)))
                 }
-                Spacer()
+            }
+            if expanded {
+                ForEach(worktree.sessions) { s in
+                    SessionArchiveRow(session: s, model: model)
+                }
             }
         }
-        .padding(.leading, 6)
     }
 }
 
@@ -283,7 +339,9 @@ private struct SessionArchiveRow: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(.leading, 12)
+        .padding(.leading, 38)
+        .padding(.trailing, 8)
+        .padding(.vertical, 3)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .contextMenu {

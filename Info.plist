@@ -35,6 +35,8 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>cc-dashboard opens a new terminal tab to resume a Claude Code session.</string>
 	<key>NSApplicationCrashOnExceptions</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

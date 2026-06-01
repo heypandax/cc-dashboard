@@ -9,6 +9,21 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Fixed
+- Resume from the All Sessions browser did nothing on a fresh install.
+  cc-dashboard's `Info.plist` was missing `NSAppleEventsUsageDescription`, so
+  macOS silently denied the Apple event to the terminal (error -1743) and never
+  showed the automation-permission prompt. The key is now present: the first
+  Resume asks for permission, and granting it opens the session in a new Ghostty
+  tab as intended. When Ghostty isn't installed, the resume command is copied to
+  the clipboard with a clearer, terminal-agnostic message.
+- All Sessions browser collapse/expand was unreliable — the first row wouldn't
+  collapse, row spacing jumped while scrolling, and expand state leaked between
+  rows. The three-level hierarchy no longer uses `List` + `DisclosureGroup`
+  (whose virtualization recycled per-row `@State`); it now uses `ScrollView` +
+  `LazyVStack` with collapse state held in the view model keyed by repository /
+  worktree path, so each row's state stays put.
+
 ## [0.2.0] — 2026-06-01
 
 ### Added

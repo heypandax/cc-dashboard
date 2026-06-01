@@ -11,7 +11,8 @@ enum GhosttyLauncher {
 
     enum Outcome: Sendable {
         case launched
-        case copiedToClipboard   // 兜底:命令已复制,需用户手动粘贴
+        case notAuthorized       // -1743:未授权发送 Apple events,需在系统设置 › 隐私 › 自动化 开启
+        case copiedToClipboard   // Ghostty 未安装等,命令已复制到剪贴板
     }
 
     @MainActor
@@ -37,13 +38,19 @@ enum GhosttyLauncher {
 
     @MainActor
     private static func run(inDirectory cwd: String, command: String?) -> Outcome {
-        if isInstalled, let script = NSAppleScript(source: appleScript(cwd: cwd, command: command)) {
-            var err: NSDictionary?
-            script.executeAndReturnError(&err)
-            if err == nil { return .launched }
-            Log.lifecycle.error("ghostty applescript failed: \(String(describing: err), privacy: .public)")
+        guard isInstalled, let script = NSAppleScript(source: appleScript(cwd: cwd, command: command)) else {
+            copyToClipboard(cwd: cwd, command: command)
+            return .copiedToClipboard
         }
-        return copyFallback(cwd: cwd, command: command)
+        var err: NSDictionary?
+        script.executeAndReturnError(&err)
+        if err == nil { return .launched }
+
+        // 失败 → 命令落剪贴板兜底。-1743 = errAEEventNotPermitted(未在系统设置授权自动化)单独提示。
+        let code = (err?[NSAppleScript.errorNumber] as? Int) ?? 0
+        Log.lifecycle.error("ghostty applescript failed: code=\(code, privacy: .public)")
+        copyToClipboard(cwd: cwd, command: command)
+        return code == -1743 ? .notAuthorized : .copiedToClipboard
     }
 
     /// surface configuration 的 initial input 末尾换行 = 回车执行;用 input 而非 command,
@@ -67,11 +74,10 @@ enum GhosttyLauncher {
         """
     }
 
-    private static func copyFallback(cwd: String, command: String?) -> Outcome {
+    private static func copyToClipboard(cwd: String, command: String?) {
         let full = command.map { "cd \(shellQuote(cwd)) && \($0)" } ?? "cd \(shellQuote(cwd))"
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(full, forType: .string)
-        return .copiedToClipboard
     }
 
     // MARK: Quoting
