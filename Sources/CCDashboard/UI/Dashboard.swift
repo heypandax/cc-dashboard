@@ -9,16 +9,24 @@ import SwiftUI
 final class Dashboard {
     let store: SessionStore
     private let server: DashboardHTTPServer
+    private let subagentWatcher: SubagentWatcher
     private let notifier = Notifier()
 
     var sessions: [SessionState] = []
     var approvals: [ApprovalRequest] = []
+    /// 子 agent 运行树投影。sessionId → runs(插入序;展示排序在 agentRuns(forSession:) 里按状态优先级做)。
+    var agentRunsBySession: [String: [AgentRun]] = [:]
     var serverError: String?
 
     init() {
         let store = SessionStore()
         self.store = store
         self.server = DashboardHTTPServer(store: store)
+
+        // 子 agent 文件 watcher —— Dashboard 的兄弟服务,detached 长跑,订阅 store 感知会话生死。
+        let watcher = SubagentWatcher(store: store)
+        self.subagentWatcher = watcher
+        Task.detached { await watcher.run() }
 
         let srv = server
         Task.detached {
@@ -71,6 +79,7 @@ final class Dashboard {
             withAnimation(.easeOut(duration: 0.25)) {
                 sessions.removeAll { $0.id == id }
             }
+            agentRunsBySession.removeValue(forKey: id)
         case .sessionFinished:
             break  // 整会话退出本身不弹横幅 —— 噪音。需要"完成感"通知请走 .turnComplete(每回合一条)。
         case .turnComplete(let s, let prompt):
@@ -94,6 +103,16 @@ final class Dashboard {
             break
         case .sessionAliasChanged:
             break  // alias 已随 sessionUpsert 更新。这个 case 留作 test 断言锚点 + 未来 UI flash 挂钩。
+        case .agentRunUpsert(let run):
+            var runs = agentRunsBySession[run.sessionId] ?? []
+            if let i = runs.firstIndex(where: { $0.id == run.id }) {
+                runs[i] = run
+            } else {
+                runs.append(run)
+            }
+            agentRunsBySession[run.sessionId] = runs   // 展示序在 agentRuns(forSession:) 里做,这里不预排
+        case .agentRunsSnapshot(let sessionId, let runs):
+            agentRunsBySession[sessionId] = runs
         }
     }
 
@@ -146,6 +165,45 @@ final class Dashboard {
             return alias
         }
         return String(id.prefix(8))
+    }
+
+    // MARK: - Agent hub (detail pane reads these — all read-only over agent state)
+
+    func session(withID id: SessionState.ID?) -> SessionState? {
+        guard let id else { return nil }
+        return sessions.first { $0.id == id }
+    }
+
+    /// running/spawning 优先,再按 startedAt 倒序 —— 活跃的 agent 浮到最上(同 sortedSessions 思路)。
+    func agentRuns(forSession id: SessionState.ID) -> [AgentRun] {
+        (agentRunsBySession[id] ?? []).sorted { a, b in
+            let pa = agentRunPriority(a.status), pb = agentRunPriority(b.status)
+            if pa != pb { return pa < pb }
+            return a.startedAt > b.startedAt
+        }
+    }
+
+    private func agentRunPriority(_ s: AgentRunStatus) -> Int {
+        switch s {
+        case .running:  return 0
+        case .spawning: return 1
+        case .done:     return 2
+        case .error:    return 3
+        }
+    }
+
+    func agentCount(forSession id: SessionState.ID) -> Int {
+        agentRunsBySession[id]?.count ?? 0
+    }
+
+    /// 会话级 rollup:总 token + 估算成本。任一 run 有价 → 累加;全 nil → cost nil(UI 只显 token)。
+    func sessionCostRollup(forSession id: SessionState.ID) -> (costUSD: Double?, tokens: Int) {
+        var tokens = 0, cost = 0.0, anyCost = false
+        for r in agentRunsBySession[id] ?? [] {
+            tokens += r.usage.totalTokens
+            if let c = r.estCostUSD { cost += c; anyCost = true }
+        }
+        return (anyCost ? cost : nil, tokens)
     }
 
     func allowAll() {

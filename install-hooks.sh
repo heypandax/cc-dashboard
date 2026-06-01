@@ -106,12 +106,12 @@ if $UNINSTALL; then
 fi
 
 echo "==> Installing cc-dashboard hooks"
-upsert_hook "PreToolUse"   "$PRETOOL"                       "Bash|Edit|Write|MultiEdit|WebFetch" 605
+upsert_hook "PreToolUse"   "$PRETOOL"                       "Agent|Task|Bash|Edit|Write|MultiEdit|WebFetch" 605
 upsert_hook "SessionStart" "$LIFECYCLE session-start"        "" 10
 upsert_hook "Stop"         "$LIFECYCLE stop"                 "" 10
 upsert_hook "SessionEnd"   "$LIFECYCLE session-end"          "" 10
 upsert_hook "Notification" "$LIFECYCLE notification"         "" 10
 
 echo "==> Done. Hooks installed to: $SETTINGS"
-echo "    PreToolUse matcher: Bash|Edit|Write|MultiEdit|WebFetch (read-only tools pass through)"
+echo "    PreToolUse matcher: Agent|Task|Bash|Edit|Write|MultiEdit|WebFetch (Agent/Task spawns recorded)"
 echo "    Uninstall: $0 --uninstall"

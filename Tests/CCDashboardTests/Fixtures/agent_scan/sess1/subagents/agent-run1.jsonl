@@ -1,0 +1,2 @@
+{"type":"user","agentId":"run1","isSidechain":true,"sessionId":"sess1","timestamp":"2026-06-01T11:00:00.000Z","message":{"role":"user","content":"sanitized task"}}
+{"type":"assistant","agentId":"run1","isSidechain":true,"sessionId":"sess1","timestamp":"2026-06-01T11:00:03.000Z","message":{"role":"assistant","model":"claude-opus-4-8","stop_reason":"tool_use","usage":{"input_tokens":300,"output_tokens":80,"cache_creation_input_tokens":500,"cache_read_input_tokens":2000}}}

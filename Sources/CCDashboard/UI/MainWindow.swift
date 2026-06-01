@@ -16,7 +16,7 @@ struct MainWindow: View {
             SessionListView(dashboard: dashboard, selection: $selectedSession)
                 .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
         } detail: {
-            ApprovalQueueView(dashboard: dashboard)
+            AgentHubView(dashboard: dashboard, selectedSessionID: selectedSession)
         }
         .navigationTitle(titleKey)
         .frame(minWidth: 800, minHeight: 520)

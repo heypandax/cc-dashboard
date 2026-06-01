@@ -1,25 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// 纯 Circle 状态点,running/waitingApproval 有外扩 pulse 环。
-/// `onChange(of: pulsing)` 保证状态切换(idle → running)时动画能重启/停止。
-struct StatusDot: View {
-    let status: SessionStatus
+/// 8×8 状态点;pulsing 时外扩 1.6s pulse 环。颜色 / 是否脉冲由调用方按各自状态枚举映射。
+/// `onChange(of: pulsing)` 保证状态切换(idle → running)时动画重启 / 停止。
+struct PulseDot: View {
+    let color: Color
+    let pulsing: Bool
     @State private var pulse = false
-
-    private var pulsing: Bool {
-        status == .running || status == .waitingApproval
-    }
-
-    private var color: Color {
-        switch status {
-        case .running:         return CC.Status.running
-        case .waitingApproval: return CC.Status.waiting
-        case .idle:            return CC.Status.idle
-        case .done:            return CC.Status.done
-        case .error:           return CC.Status.error
-        }
-    }
 
     var body: some View {
         ZStack {
@@ -42,6 +29,25 @@ struct StatusDot: View {
         withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) {
             pulse = true
         }
+    }
+}
+
+/// 会话状态点 —— SessionStatus → (颜色, 是否脉冲) 映射,渲染走共享的 PulseDot。
+struct StatusDot: View {
+    let status: SessionStatus
+
+    private var color: Color {
+        switch status {
+        case .running:         return CC.Status.running
+        case .waitingApproval: return CC.Status.waiting
+        case .idle:            return CC.Status.idle
+        case .done:            return CC.Status.done
+        case .error:           return CC.Status.error
+        }
+    }
+
+    var body: some View {
+        PulseDot(color: color, pulsing: status == .running || status == .waitingApproval)
     }
 }
 
@@ -197,6 +203,13 @@ struct SessionRow: View {
         dashboard.approvals.filter { $0.sessionId == session.id }.count
     }
 
+    /// 该会话最老的一笔 pending(最紧急)—— 行内 Allow/Deny 作用于它。
+    private var firstPendingApproval: ApprovalRequest? {
+        dashboard.approvals
+            .filter { $0.sessionId == session.id }
+            .min { $0.createdAt < $1.createdAt }
+    }
+
     private var hasActiveTrust: Bool {
         session.hasActiveTrust(now: Date())
     }
@@ -264,6 +277,26 @@ struct SessionRow: View {
                         .font(CC.monoTiny.weight(.semibold))
                         .foregroundStyle(CC.amberInk)
                 }
+            }
+
+            // 审批动作下沉到会话行 —— 作用于最老一笔 pending。响度不降:上面的 count / tool: amber /
+            // 脉冲点 / 窗口标题 / 跨会话条 / 菜单栏 popover 全保留,这里只是「净增」一个就地操作入口。
+            if let pending = firstPendingApproval {
+                HStack(spacing: 6) {
+                    Text(pending.summaryLine)
+                        .font(CC.monoTiny)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 6)
+                    AllowButton(size: .compact) {
+                        dashboard.decide(approvalID: pending.id, decision: .allow)
+                    }
+                    DenyButton(size: .compact) {
+                        dashboard.decide(approvalID: pending.id, decision: .deny)
+                    }
+                }
+                .padding(.top, 1)
             }
         }
         .padding(.vertical, 3)

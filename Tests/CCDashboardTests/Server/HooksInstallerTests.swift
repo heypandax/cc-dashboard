@@ -94,6 +94,13 @@ final class HooksInstallerTests: XCTestCase {
         XCTAssertNotNil(hooks["SessionEnd"])
         XCTAssertNotNil(hooks["Notification"])
 
+        // PreToolUse matcher 覆盖 Agent / Task(记录 subagent 派生,不阻塞)
+        let preMatchers = ((hooks["PreToolUse"] as? [[String: Any]]) ?? []).compactMap { $0["matcher"] as? String }
+        XCTAssertTrue(
+            preMatchers.contains { $0.contains("Agent") && $0.contains("Task") },
+            "PreToolUse matcher 应含 Agent|Task,实得 \(preMatchers)"
+        )
+
         // cc-dashboard 自己的 user-prompt-submit lifecycle 已注册(对话回合通知数据源)
         let upsList = (hooks["UserPromptSubmit"] as? [[String: Any]]) ?? []
         let upsCommands = upsList.flatMap { entry -> [String] in
@@ -137,5 +144,45 @@ final class HooksInstallerTests: XCTestCase {
 
         let settingsAfterSecond = try Data(contentsOf: URL(fileURLWithPath: settingsPath))
         XCTAssertEqual(settingsAfterFirst, settingsAfterSecond, "settings 应字节相同")
+    }
+
+    // MARK: - 升级:老 matcher(无 Agent|Task)→ 重装修复成新 matcher
+
+    func testInstallerUpgradesOldPreToolMatcher() throws {
+        let installer = makeInstaller()
+
+        // 正常装一次(空 settings)
+        let initial: [String: Any] = [:]
+        try JSONSerialization.data(withJSONObject: initial, options: [])
+            .write(to: URL(fileURLWithPath: settingsPath))
+        installer.installIfNeeded()
+
+        // 篡改成旧 matcher,模拟升级前的 settings.json(命令路径没变,只是 matcher 旧)
+        var root = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: settingsPath))) as? [String: Any])
+        var hooks = try XCTUnwrap(root["hooks"] as? [String: Any])
+        var pre = try XCTUnwrap(hooks["PreToolUse"] as? [[String: Any]])
+        pre[0]["matcher"] = "Bash|Edit|Write|MultiEdit|WebFetch"
+        hooks["PreToolUse"] = pre
+        root["hooks"] = hooks
+        try JSONSerialization.data(withJSONObject: root, options: [])
+            .write(to: URL(fileURLWithPath: settingsPath))
+
+        // 删掉第一次的备份 —— installIfNeeded 用秒级时间戳命名备份,同秒二次安装会撞名失败。
+        // (生产里一次启动只装一次,不会同秒重装;这里纯属测试把两次安装挤在同一秒。)
+        let backupDir = URL(fileURLWithPath: settingsPath).deletingLastPathComponent()
+        for f in try FileManager.default.contentsOfDirectory(atPath: backupDir.path) where f.contains(".bak.") {
+            try FileManager.default.removeItem(at: backupDir.appendingPathComponent(f))
+        }
+
+        // 再次 install —— 应检测到 matcher 不符并 strip+重装修复
+        installer.installIfNeeded()
+
+        let after = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: settingsPath))) as? [String: Any])
+        let afterHooks = try XCTUnwrap(after["hooks"] as? [String: Any])
+        let afterMatchers = ((afterHooks["PreToolUse"] as? [[String: Any]]) ?? []).compactMap { $0["matcher"] as? String }
+        XCTAssertTrue(afterMatchers.contains(HooksInstaller.preToolMatcher),
+                      "升级应把旧 matcher 修复成新串,实得 \(afterMatchers)")
+        XCTAssertFalse(afterMatchers.contains("Bash|Edit|Write|MultiEdit|WebFetch"),
+                       "旧 matcher 条目应被替换掉")
     }
 }

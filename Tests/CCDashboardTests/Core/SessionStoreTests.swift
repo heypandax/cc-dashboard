@@ -647,6 +647,103 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertTrue(aliasStore.load().isEmpty, "unknown sessionId 不应触发任何写入")
     }
 
+    // MARK: - Agent runs: recordAgentSpawn 广播 .spawning
+
+    func testRecordAgentSpawnBroadcastsSpawningRun() async throws {
+        let store = makeStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+        _ = await iter.next()   // snapshot
+
+        await store.recordAgentSpawn(sessionID: "s1", subagentType: "Plan", description: "design", prompt: "p")
+
+        guard case .agentRunUpsert(let run) = await iter.next() else {
+            return XCTFail("expected .agentRunUpsert")
+        }
+        XCTAssertEqual(run.sessionId, "s1")
+        XCTAssertEqual(run.agentType, "Plan")
+        XCTAssertEqual(run.status, .spawning)
+        XCTAssertTrue(run.id.hasPrefix("spawn-"))
+    }
+
+    // MARK: - Agent runs: upsertAgentRun 对齐 .spawning 占位并带过 prompt
+
+    func testUpsertAgentRunReconcilesSpawnPlaceholder() async throws {
+        let store = makeStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+
+        await store.recordAgentSpawn(sessionID: "s1", subagentType: "Explore", description: "survey", prompt: "secret task")
+        let afterSpawn = await store.agentRuns(forSession: "s1")
+        XCTAssertEqual(afterSpawn.count, 1)
+        XCTAssertEqual(afterSpawn.first?.status, .spawning)
+
+        // watcher 用真实 agentId upsert(同 type+description,自身无 prompt)
+        let real = AgentRun(
+            id: "realAgent1", sessionId: "s1", toolUseId: "toolu_1",
+            agentType: "Explore", description: "survey", prompt: nil,
+            model: "claude-haiku-4-5", status: .running,
+            startedAt: Date(), endedAt: nil, usage: TokenUsage(), estCostUSD: nil
+        )
+        await store.upsertAgentRun(real)
+
+        let afterReconcile = await store.agentRuns(forSession: "s1")
+        XCTAssertEqual(afterReconcile.count, 1, "占位应被真实 agentId 替换,不是新增")
+        let merged = try XCTUnwrap(afterReconcile.first)
+        XCTAssertEqual(merged.id, "realAgent1")
+        XCTAssertEqual(merged.status, .running)
+        XCTAssertEqual(merged.model, "claude-haiku-4-5")
+        XCTAssertEqual(merged.prompt, "secret task", "watcher 无 prompt,应从占位带过来")
+    }
+
+    // MARK: - Agent runs: subscribe 首帧 snapshot 后逐 session 补发 agentRunsSnapshot
+
+    func testSubscribeEmitsAgentRunsSnapshotForExistingRuns() async throws {
+        let store = makeStore()
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.recordAgentSpawn(sessionID: "s1", subagentType: "Explore", description: "x", prompt: nil)
+
+        let stream = await store.subscribe()
+        var iter = stream.makeAsyncIterator()
+
+        guard case .snapshot = await iter.next() else {
+            return XCTFail("expected .snapshot first")
+        }
+        guard case .agentRunsSnapshot(let sid, let runs) = await iter.next() else {
+            return XCTFail("expected .agentRunsSnapshot after snapshot")
+        }
+        XCTAssertEqual(sid, "s1")
+        XCTAssertEqual(runs.count, 1)
+    }
+
+    // MARK: - Agent runs: purgeSession 清掉该 session 的 agentRuns
+
+    func testPurgeSessionClearsAgentRuns() async throws {
+        let scheduler = TestScheduler()
+        let store = SessionStore(
+            aliasStore: AliasStore(defaults: isolatedDefaults()),
+            trustStore: TrustStore(defaults: isolatedDefaults()),
+            turnCompleteDebounceSeconds: 0,
+            now: { scheduler.now },
+            delay: { await scheduler.sleep(nanos: $0) }
+        )
+        await store.upsertSession(id: "s1", cwd: "/", transcriptPath: nil)
+        await store.recordAgentSpawn(sessionID: "s1", subagentType: "Explore", description: "x", prompt: nil)
+        let spawnCount = await store.agentRuns(forSession: "s1").count
+        XCTAssertEqual(spawnCount, 1)
+
+        await store.markSessionDone(id: "s1")
+        try await Task.sleep(nanoseconds: 20_000_000)   // 让 purge Task 抵达 await delay 注册
+        scheduler.advance(bySeconds: 11)                // 越过 10s purge 窗
+
+        var cleared = false
+        for _ in 0..<200 {
+            if await store.agentRuns(forSession: "s1").isEmpty { cleared = true; break }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        XCTAssertTrue(cleared, "purge 后 agentRuns 应被清空")
+    }
+
     // MARK: - 辅助
 
     private func isolatedDefaults() -> UserDefaults {

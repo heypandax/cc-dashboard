@@ -14,6 +14,10 @@ struct HooksInstaller {
     /// nil 时从 `Bundle.main.resourceURL/hooks/` 取脚本。测试可注入临时目录。
     let bundledHooksDir: URL?
 
+    /// PreToolUse matcher。Agent|Task 用于记录 subagent 派生(见 HookHandlers.preToolUse /
+    /// SubagentWatcher),其余是会触发审批的写入 / 网络工具。改这里必须同步 `install-hooks.sh` 第 109 行。
+    static let preToolMatcher = "Agent|Task|Bash|Edit|Write|MultiEdit|WebFetch"
+
     static let `default`: HooksInstaller = {
         let dir = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -92,9 +96,26 @@ struct HooksInstaller {
             ("Notification",     lifecycleCommand("notification")),
             ("UserPromptSubmit", lifecycleCommand("user-prompt-submit")),
         ]
-        return expectations.allSatisfy { exp in
+        let allCommandsPresent = expectations.allSatisfy { exp in
             commandsForEvent(hooks: hooks, event: exp.event).contains(exp.command)
         }
+        // 命令齐了还不够 —— PreToolUse 的 matcher 也要等于期望串。否则老用户升级后
+        // (pretool.sh 路径没变、只是 matcher 多了 Agent|Task)会被判为"已装"而拿不到新 matcher,
+        // subagent 派生就抓不到。matcher 不符 → 返回 false → 走 strip+重装(幂等)修复。
+        let matcherCurrent = matcher(forCommand: pretoolCommand, event: "PreToolUse", hooks: hooks) == Self.preToolMatcher
+        return allCommandsPresent && matcherCurrent
+    }
+
+    /// 找到 event 下包含指定 command 的那个 entry 的 matcher(找不到返 nil)。
+    private func matcher(forCommand command: String, event: String, hooks: [String: Any]) -> String? {
+        let entries = (hooks[event] as? [[String: Any]]) ?? []
+        for entry in entries {
+            let inner = (entry["hooks"] as? [[String: Any]]) ?? []
+            if inner.contains(where: { ($0["command"] as? String) == command }) {
+                return entry["matcher"] as? String
+            }
+        }
+        return nil
     }
 
     private func commandsForEvent(hooks: [String: Any], event: String) -> [String] {
@@ -197,7 +218,7 @@ struct HooksInstaller {
 
     private func appendCCDashboard(_ hooks: inout [String: Any]) {
         appendHook(&hooks, event: "PreToolUse",
-                   matcher: "Bash|Edit|Write|MultiEdit|WebFetch",
+                   matcher: Self.preToolMatcher,
                    command: pretoolCommand, timeout: 605)
         appendHook(&hooks, event: "SessionStart", matcher: nil,
                    command: lifecycleCommand("session-start"), timeout: 10)

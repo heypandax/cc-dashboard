@@ -25,6 +25,10 @@ struct SessionState: Codable, Sendable, Identifiable {
     var autoAllowForever: Bool = false
     /// 用户自定义显示名。持久化源是 AliasStore(按 cwd),这里的字段只是广播/查询时的投影。
     var alias: String?
+    /// 父会话当前的 permission_mode。每个 hook payload 都带(HookInput.permissionMode),
+    /// 之前收到却没落库;Agent Hub 头部要展示。默认 nil 且必须排在 alias 之后 ——
+    /// 否则 SessionState(...) 的位置参数构造点(含测试)会断。
+    var permissionMode: String? = nil
 }
 
 extension SessionState {
@@ -70,6 +74,66 @@ struct DecisionRequest: Codable, Sendable {
 
 struct TrustRequest: Codable, Sendable {
     let minutes: Int
+}
+
+// MARK: - Agent runs (subagent tree)
+
+/// 子 agent 执行状态。spawning = hook 已报派生但磁盘文件还没出现;running = 子转录在追加;
+/// done = 末条 assistant 记录 stop_reason==end_turn;error = 会话结束时仍未完成。
+enum AgentRunStatus: String, Codable, Sendable {
+    case spawning
+    case running
+    case done
+    case error
+}
+
+/// 单个 agent 的 token 累计。只取转录 usage 里 4 个扁平字段 —— 嵌套的 cache_creation /
+/// server_tool_use / iterations 是噪声,忽略。
+struct TokenUsage: Codable, Sendable, Equatable {
+    var inputTokens: Int = 0
+    var outputTokens: Int = 0
+    var cacheCreationTokens: Int = 0
+    var cacheReadTokens: Int = 0
+
+    var totalTokens: Int { inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens }
+
+    static func + (l: TokenUsage, r: TokenUsage) -> TokenUsage {
+        TokenUsage(
+            inputTokens: l.inputTokens + r.inputTokens,
+            outputTokens: l.outputTokens + r.outputTokens,
+            cacheCreationTokens: l.cacheCreationTokens + r.cacheCreationTokens,
+            cacheReadTokens: l.cacheReadTokens + r.cacheReadTokens
+        )
+    }
+}
+
+/// 子 agent 的一次工具调用(从子转录的 tool_use 记录提取)。summary 是 command/file_path/url 等摘要 ——
+/// 本机展示用,和审批卡一样含命令 / 路径,绝不进 Telemetry。
+struct AgentToolCall: Codable, Sendable, Equatable, Identifiable {
+    let id: String        // tool_use id(toolu_…),去重 / ForEach
+    let name: String      // Read / Bash / Edit / …
+    let summary: String   // command / file_path / url …(可空)
+    let at: Date?
+}
+
+/// 主会话派生的一个 subagent 的运行视图。`id` 是 Claude Code 的 agentId(子转录文件名内嵌)。
+/// spawning 阶段还没有真实 agentId —— 先用 synthetic id 占位,watcher 见到文件后按
+/// (agentType, description) 对齐替换(见 SessionStore.upsertAgentRun)。
+/// `prompt` 只有 PreToolUse hook 拿得到 —— 本机 UI / 本地 /ws 可展示,绝不进 Telemetry。
+struct AgentRun: Codable, Sendable, Identifiable, Equatable {
+    let id: String
+    let sessionId: String
+    var toolUseId: String?
+    var agentType: String
+    var description: String
+    var prompt: String?
+    var model: String?
+    var status: AgentRunStatus
+    var startedAt: Date
+    var endedAt: Date?
+    var usage: TokenUsage
+    var estCostUSD: Double?
+    var toolCalls: [AgentToolCall] = []
 }
 
 // MARK: - Hook IO
@@ -167,11 +231,15 @@ enum DashboardEvent: Sendable {
     case autoAllowCleared(sessionId: String)
     case sessionAliasChanged(sessionId: String, alias: String?)
     case snapshot(sessions: [SessionState], approvals: [ApprovalRequest])
+    /// 子 agent 运行 upsert —— spawn / 进度 / 完成统一走这条,前端按 AgentRun.id 覆盖。
+    case agentRunUpsert(AgentRun)
+    /// 某 session 的全部 agent 运行快照 —— subscribe 首帧逐 session 补发,重连不丢历史。
+    case agentRunsSnapshot(sessionId: String, runs: [AgentRun])
 }
 
 extension DashboardEvent: Encodable {
     private enum CodingKeys: String, CodingKey {
-        case type, session, sessionId, approval, approvalId, sessions, approvals, until, alias, prompt
+        case type, session, sessionId, approval, approvalId, sessions, approvals, until, alias, prompt, agentRun, runs
     }
 
     func encode(to encoder: Encoder) throws {
@@ -214,6 +282,13 @@ extension DashboardEvent: Encodable {
             try c.encode("snapshot", forKey: .type)
             try c.encode(sessions, forKey: .sessions)
             try c.encode(approvals, forKey: .approvals)
+        case .agentRunUpsert(let run):
+            try c.encode("agent_run_upsert", forKey: .type)
+            try c.encode(run, forKey: .agentRun)
+        case .agentRunsSnapshot(let sid, let runs):
+            try c.encode("agent_runs_snapshot", forKey: .type)
+            try c.encode(sid, forKey: .sessionId)
+            try c.encode(runs, forKey: .runs)
         }
     }
 }

@@ -108,6 +108,12 @@ final class ModelsTests: XCTestCase {
             id: "a1", sessionId: "s1", toolName: "Bash",
             toolInput: [:], cwd: "/tmp", createdAt: fixedDate
         )
+        let run = AgentRun(
+            id: "agent-x", sessionId: "s1", toolUseId: nil,
+            agentType: "Explore", description: "survey", prompt: nil,
+            model: "claude-haiku-4-5", status: .running,
+            startedAt: fixedDate, endedAt: nil, usage: TokenUsage(), estCostUSD: nil
+        )
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -126,7 +132,9 @@ final class ModelsTests: XCTestCase {
             (.autoAllowCleared(sessionId: "s1"),                            "auto_allow_cleared"),
             (.sessionAliasChanged(sessionId: "s1", alias: "hello"),         "session_alias_changed"),
             (.sessionAliasChanged(sessionId: "s1", alias: nil),             "session_alias_changed"),
-            (.snapshot(sessions: [session], approvals: [approval]),         "snapshot")
+            (.snapshot(sessions: [session], approvals: [approval]),         "snapshot"),
+            (.agentRunUpsert(run),                                          "agent_run_upsert"),
+            (.agentRunsSnapshot(sessionId: "s1", runs: [run]),              "agent_runs_snapshot")
         ]
 
         for (event, expectedType) in cases {
@@ -252,5 +260,24 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(decoded.toolName, original.toolName)
         XCTAssertEqual(decoded.toolInput["command"]?.display, "ls")
         XCTAssertEqual(decoded.toolInput["timeout"]?.value as? Int, 5000)
+    }
+
+    // MARK: - AgentRun / TokenUsage 完整 roundtrip(prompt 本地序列化保留,只是不进 Telemetry)
+
+    func testAgentRunRoundtrip() throws {
+        let original = AgentRun(
+            id: "agent-1", sessionId: "s1", toolUseId: "toolu_1",
+            agentType: "Explore", description: "survey", prompt: "secret prompt",
+            model: "claude-haiku-4-5", status: .done,
+            startedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            endedAt: Date(timeIntervalSince1970: 1_700_000_050),
+            usage: TokenUsage(inputTokens: 1, outputTokens: 2, cacheCreationTokens: 3, cacheReadTokens: 4),
+            estCostUSD: 0.123
+        )
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(AgentRun.self, from: encoder.encode(original))
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.usage.totalTokens, 10)
     }
 }

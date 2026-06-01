@@ -82,3 +82,14 @@
 "Refresh" = "Refresh";
 "Resume command copied to clipboard — paste it into your terminal." = "Resume command copied to clipboard — paste it into your terminal.";
 "Allow Ghostty automation in System Settings › Privacy › Automation, then retry. Command copied to clipboard." = "Allow Ghostty automation in System Settings › Privacy › Automation, then retry. Command copied to clipboard.";
+
+/* Agent hub */
+"Agents" = "Agents";
+"running" = "running";
+"queued" = "queued";
+"done" = "done";
+"No subagents yet" = "No subagents yet";
+"Subagents this session spawns will appear here." = "Subagents this session spawns will appear here.";
+"Select a session" = "Select a session";
+"Pick a session on the left to see its agents and cost." = "Pick a session on the left to see its agents and cost.";
+"No tool calls recorded" = "No tool calls recorded";

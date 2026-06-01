@@ -10,4 +10,5 @@ enum Log {
     static let session   = Logger(subsystem: subsystem, category: "session")
     static let autoAllow = Logger(subsystem: subsystem, category: "auto-allow")
     static let approval  = Logger(subsystem: subsystem, category: "approval")
+    static let agent     = Logger(subsystem: subsystem, category: "agent")
 }

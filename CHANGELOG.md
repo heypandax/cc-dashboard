@@ -9,6 +9,14 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Added
+- **Agent hub.** A session's detail pane now lists the subagents it spawned —
+  type, task, model, live status (running / done), and an estimated token cost —
+  read directly from Claude Code's transcript files. The `PreToolUse` hook
+  matcher now also covers `Agent`/`Task`, so subagent spawns are *recorded* (never
+  blocked or queued for approval). Existing installs have their hook matcher
+  upgraded automatically on next launch.
+
 ## [0.2.1] — 2026-06-01
 
 ### Fixed

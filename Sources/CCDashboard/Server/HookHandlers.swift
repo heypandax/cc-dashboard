@@ -8,7 +8,8 @@ struct HookHandlers: Sendable {
         await store.upsertSession(
             id: input.sessionID,
             cwd: input.cwd ?? "",
-            transcriptPath: input.transcriptPath
+            transcriptPath: input.transcriptPath,
+            permissionMode: input.permissionMode
         )
         return HookAckResponse(ok: true)
     }
@@ -23,8 +24,22 @@ struct HookHandlers: Sendable {
         await store.upsertSession(
             id: input.sessionID,
             cwd: input.cwd ?? "",
-            transcriptPath: input.transcriptPath
+            transcriptPath: input.transcriptPath,
+            permissionMode: input.permissionMode
         )
+
+        // Agent / Task = 派生 subagent。不是危险动作,不入审批队列(否则会把 spawn 卡到 600s);
+        // 记录后立即放行 —— 此路永不进 requestApproval、永不建 CheckedContinuation。
+        // 放在 auto-allow 早返回之前:bypassPermissions / acceptEdits 下也照样记录。
+        if toolName == "Agent" || toolName == "Task" {
+            await store.recordAgentSpawn(
+                sessionID: input.sessionID,
+                subagentType: input.toolInput?["subagent_type"]?.display,
+                description: input.toolInput?["description"]?.display,
+                prompt: input.toolInput?["prompt"]?.display
+            )
+            return allowOutput(reason: "subagent spawn (recorded by cc-dashboard)")
+        }
 
         // Claude Code 的 PreToolUse hook 在 permission 系统之前触发 —— 用户开了
         // bypassPermissions / acceptEdits 时如果还把请求挂进审批队列,等于强行

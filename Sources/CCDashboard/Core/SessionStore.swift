@@ -26,6 +26,9 @@ actor SessionStore {
     /// 启动时从 TrustStore 一次性加载,upsertSession 命中新 session 时按需套用。
     /// 过期的 time-boxed 项在 init 阶段就丢,顺手清掉持久层。
     private var pendingTrustsByCwd: [String: PersistedTrust.Mode] = [:]
+    /// 子 agent 运行树。sessionId → agentId → run(仿 pendingApprovals 形状)。
+    /// 只读旁路:相关方法只改字典 + broadcast,绝不碰 pendingContinuations —— 丢一个审批永久挂死。
+    private var agentRunsBySession: [String: [String: AgentRun]] = [:]
 
     init(
         aliasStore: AliasStore = AliasStore(),
@@ -60,13 +63,14 @@ actor SessionStore {
 
     // MARK: Session lifecycle
 
-    func upsertSession(id: String, cwd: String, transcriptPath: String?) {
+    func upsertSession(id: String, cwd: String, transcriptPath: String?, permissionMode: String? = nil) {
         let resolvedAlias = aliasStore.get(cwd: cwd)
         if var existing = sessions[id] {
             existing.cwd = cwd
             existing.lastActivityAt = now()
             existing.status = .running
             if let transcriptPath { existing.transcriptPath = transcriptPath }
+            if let permissionMode { existing.permissionMode = permissionMode }
             existing.alias = resolvedAlias   // cwd 可能在 update 时变,alias 跟着走
             sessions[id] = existing
             broadcast(.sessionUpsert(existing))
@@ -87,7 +91,8 @@ actor SessionStore {
                 lastTool: nil,
                 lastNotification: nil,
                 autoAllowUntil: nil,
-                alias: resolvedAlias
+                alias: resolvedAlias,
+                permissionMode: permissionMode
             )
             sessions[id] = state
             broadcast(.sessionUpsert(state))
@@ -158,6 +163,7 @@ actor SessionStore {
         guard sessions[id]?.status == .done else { return }
         sessions.removeValue(forKey: id)
         lastPrompts.removeValue(forKey: id)
+        agentRunsBySession.removeValue(forKey: id)
         cancelPendingTurnComplete(sessionID: id)
         broadcast(.sessionRemove(id))
     }
@@ -386,6 +392,61 @@ actor SessionStore {
         setSessionAlias(cwd: cwd, alias: alias)
     }
 
+    // MARK: Agent runs (subagent tree)
+
+    /// PreToolUse(Agent/Task) —— 派生瞬间记录,此时子转录文件还没出现。
+    /// toolUseId 恒 nil(实测 PreToolUse payload 不含 tool_use id)。用 synthetic id 占位,
+    /// watcher 见到文件后按 (agentType, description) 对齐替换(见 upsertAgentRun)。
+    func recordAgentSpawn(sessionID: String, subagentType: String?, description: String?, prompt: String?) {
+        let synthetic = "spawn-\(UUID().uuidString)"
+        let run = AgentRun(
+            id: synthetic,
+            sessionId: sessionID,
+            toolUseId: nil,
+            agentType: subagentType ?? "agent",
+            description: description ?? "",
+            prompt: prompt,
+            model: nil,
+            status: .spawning,
+            startedAt: now(),
+            endedAt: nil,
+            usage: TokenUsage(),
+            estCostUSD: nil
+        )
+        agentRunsBySession[sessionID, default: [:]][synthetic] = run
+        Log.agent.info("spawn session=\(sessionID, privacy: .public) type=\(run.agentType, privacy: .public)")
+        broadcast(.agentRunUpsert(run))
+    }
+
+    /// watcher 用真实 agentId 调。若 bucket 里有 (agentType, description) 匹配的 .spawning 占位 →
+    /// 替换之并把 prompt 带过来(watcher 永远拿不到 prompt,只有 hook 有);否则按 agentId 直接 upsert。
+    /// 对齐是启发式(spawn 与文件无共享 id),最坏情况同型同述并发下 prompt 标错 —— 纯外观,不崩。
+    func upsertAgentRun(_ run: AgentRun) {
+        var bucket = agentRunsBySession[run.sessionId] ?? [:]
+        if bucket[run.id] == nil,
+           let placeholderKey = bucket.first(where: {
+               $0.value.status == .spawning
+                   && $0.value.agentType == run.agentType
+                   && $0.value.description == run.description
+           })?.key {
+            let carriedPrompt = bucket[placeholderKey]?.prompt
+            bucket.removeValue(forKey: placeholderKey)
+            var merged = run
+            if merged.prompt == nil { merged.prompt = carriedPrompt }
+            bucket[run.id] = merged
+            agentRunsBySession[run.sessionId] = bucket
+            broadcast(.agentRunUpsert(merged))
+            return
+        }
+        bucket[run.id] = run
+        agentRunsBySession[run.sessionId] = bucket
+        broadcast(.agentRunUpsert(run))
+    }
+
+    func agentRuns(forSession id: String) -> [AgentRun] {
+        Array((agentRunsBySession[id] ?? [:]).values).sorted { $0.startedAt < $1.startedAt }
+    }
+
     // MARK: Event stream (WebSocket subscribers)
 
     func subscribe() -> AsyncStream<DashboardEvent> {
@@ -398,6 +459,11 @@ actor SessionStore {
             approvals: Array(pendingApprovals.values).sorted { $0.createdAt < $1.createdAt }
         )
         continuation.yield(snapshot)
+
+        // agent 运行不进 .snapshot(保持既有 wire 形状),逐 session 补发 —— 重连不丢历史。
+        for sid in agentRunsBySession.keys {
+            continuation.yield(.agentRunsSnapshot(sessionId: sid, runs: agentRuns(forSession: sid)))
+        }
 
         continuation.onTermination = { [weak self] _ in
             Task { [weak self] in
