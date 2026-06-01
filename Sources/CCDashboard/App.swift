@@ -69,7 +69,9 @@ final class AppState {
             userDriverDelegate: nil
         )
         self.updaterController = updater
-        self.statusBar = StatusBarController(dashboard: d, updater: updater)
+        // 会话总览 ViewModel —— 注入 StatusBarController(它持有手搓的总览窗口)。
+        let browser = SessionBrowserModel(dashboard: d)
+        self.statusBar = StatusBarController(dashboard: d, sessionBrowser: browser, updater: updater)
 
         let version = Bundle.main.appVersion ?? "unknown"
         Telemetry.track(.appLaunch, [.version: version])

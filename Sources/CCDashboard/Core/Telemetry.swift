@@ -15,10 +15,12 @@ enum Telemetry {
         case autoAllowForeverSet    = "auto_allow_forever_set"
         case sessionRenamed         = "session_renamed"
         case trustFromRow           = "trust_from_row"
+        case sessionBrowserOpened   = "session_browser_opened"
+        case resumeFromBrowser      = "resume_from_browser"
     }
 
     enum Key: String {
-        case tool, risk, decision, count, minutes, version, phase, cleared
+        case tool, risk, decision, count, minutes, version, phase, cleared, fallback
         case trustMinutes = "trust_minutes"
         case customTrust  = "custom_trust"
         case trustForever = "trust_forever"

@@ -9,6 +9,22 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Added
+- **All Sessions browser.** A new window (opened from the menu-bar panel's
+  "All Sessions" button) scans every Claude Code session under
+  `~/.claude/projects` and groups them by **repository → worktree / branch →
+  session**, so sessions scattered across many git worktrees of the same repo
+  are finally collected in one place. Worktrees are aggregated by their shared
+  git common dir, so the grouping is correct even though the on-disk project
+  folder names are ambiguous. Each session shows its title (Claude's slug,
+  falling back to the first prompt) and last-activity time; currently-live
+  sessions are highlighted. Click **Resume** to reopen that conversation in a
+  new Ghostty tab — it `cd`s into the session's worktree and runs
+  `claude --resume <id>` through Ghostty's scripting interface (falls back to
+  copying the command to the clipboard if Ghostty isn't installed) — or **Open
+  directory** to just open the worktree. All data stays local; no paths,
+  branches, or prompts are sent to telemetry.
+
 ## [0.1.8] — 2026-04-28
 
 ### Fixed

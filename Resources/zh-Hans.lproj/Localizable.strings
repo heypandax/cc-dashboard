@@ -66,3 +66,17 @@
 
 /* 永久允许 */
 "Trust forever" = "永久允许";
+
+/* 会话总览 */
+"All Sessions" = "会话总览";
+"Search sessions" = "搜索会话";
+"%lld sessions" = "%lld 个会话";
+"%lld worktrees" = "%lld 个 worktree";
+"deleted" = "已删除";
+"Resume" = "恢复";
+"Open directory" = "打开目录";
+"No sessions found" = "未找到会话";
+"No matches" = "无匹配结果";
+"Scanning…" = "扫描中…";
+"Refresh" = "刷新";
+"Ghostty not available — command copied to clipboard" = "Ghostty 未就绪 —— 命令已复制到剪贴板";

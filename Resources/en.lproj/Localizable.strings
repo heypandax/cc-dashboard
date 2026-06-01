@@ -67,3 +67,17 @@
 
 /* Permanent trust */
 "Trust forever" = "Trust forever";
+
+/* Session browser */
+"All Sessions" = "All Sessions";
+"Search sessions" = "Search sessions";
+"%lld sessions" = "%lld sessions";
+"%lld worktrees" = "%lld worktrees";
+"deleted" = "deleted";
+"Resume" = "Resume";
+"Open directory" = "Open directory";
+"No sessions found" = "No sessions found";
+"No matches" = "No matches";
+"Scanning…" = "Scanning…";
+"Refresh" = "Refresh";
+"Ghostty not available — command copied to clipboard" = "Ghostty not available — command copied to clipboard";

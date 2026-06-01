@@ -14,14 +14,19 @@ final class StatusBarController {
         didSet { refreshClickMonitor() }
     }
 
+    private let sessionBrowser: SessionBrowserModel
     private var statusItem: NSStatusItem!
     private var panel: NSPanel!
     private var hostingController: NSHostingController<MenuBarView>!
     private var clickMonitor: Any?
     private var lastAppliedIconState: MenuBarIconState?
+    /// 会话总览窗口 —— 手搓 NSWindow 懒创建复用。不用 SwiftUI `Window` scene:
+    /// 非首个 Window scene 惰性创建,启动时不进 NSApp.windows,AppKit 侧 order-front 找不到。
+    private var sessionBrowserWindow: NSWindow?
 
-    init(dashboard: Dashboard, updater: SPUStandardUpdaterController) {
+    init(dashboard: Dashboard, sessionBrowser: SessionBrowserModel, updater: SPUStandardUpdaterController) {
         self.dashboard = dashboard
+        self.sessionBrowser = sessionBrowser
         self.updater = updater
         setupStatusItem()
         setupPanel()
@@ -181,6 +186,32 @@ final class StatusBarController {
         // 每次打开都重新校准位置 —— 用户可能在窗口关着的时候插拔外屏。
         MainWindowGeometry.clampToVisibleScreens(window)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    // MARK: - Session browser
+
+    func openSessionBrowser() {
+        hidePanel()
+        NSApp.activate(ignoringOtherApps: true)
+
+        let win: NSWindow
+        if let existing = sessionBrowserWindow {
+            win = existing
+            Task { await sessionBrowser.refresh() }   // 复用窗口,主动刷新一遍
+        } else {
+            // 首次:手搓窗口承载 SessionBrowserView。首屏扫描由 SessionBrowserView.task 触发。
+            let host = NSHostingController(rootView: SessionBrowserView(model: sessionBrowser))
+            win = NSWindow(contentViewController: host)
+            win.title = String(localized: "All Sessions")
+            win.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+            win.isReleasedWhenClosed = false   // 关闭只隐藏,下次复用同一窗口
+            win.setContentSize(NSSize(width: 700, height: 560))
+            win.center()
+            sessionBrowserWindow = win
+        }
+        MainWindowGeometry.clampToVisibleScreens(win)
+        win.makeKeyAndOrderFront(nil)
+        Telemetry.track(.sessionBrowserOpened)
     }
 }
 

@@ -29,6 +29,8 @@ struct MenuBarView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(CC.indigoBot)
                 .controlSize(.small)
+                Button("All Sessions") { controller.openSessionBrowser() }
+                    .controlSize(.small)
                 Spacer()
                 Button("Check for Updates…") { controller.checkForUpdates() }
                     .controlSize(.small)
