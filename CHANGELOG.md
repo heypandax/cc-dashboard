@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-01
+
 ### Added
 - **All Sessions browser.** A new window (opened from the menu-bar panel's
   "All Sessions" button) scans every Claude Code session under
@@ -204,7 +206,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.0
 [0.1.8]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.8
 [0.1.7]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.7
 [0.1.6]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.6
