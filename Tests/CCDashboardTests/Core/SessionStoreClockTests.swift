@@ -233,8 +233,10 @@ final class SessionStoreClockTests: XCTestCase {
 
     /// 让 actor hop + scheduler-registered continuation 有机会跑。
     /// TestScheduler 是虚拟时钟,不能依赖 wall-clock sleep,只 yield。
+    /// 多轮 yield —— advance 唤醒 continuation 后,过期/purge 还要再跳一次 actor 跑 clearAutoAllow,
+    /// cooperative pool 繁忙时少量 yield settle 不全(并行套件下会偶发漏跑)。给足迭代次数。
     private func waitForScheduledWork() async {
-        for _ in 0..<20 { await Task.yield() }
+        for _ in 0..<200 { await Task.yield() }
     }
 }
 
