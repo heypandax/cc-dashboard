@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-06-01
+
 ### Added
 - **Agent hub.** A session's detail pane now lists the subagents it spawned —
   type, task, model, live status (running / done), and an estimated token cost —
@@ -231,7 +233,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.2
 [0.2.1]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.1
 [0.2.0]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.0
 [0.1.8]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.1.8
