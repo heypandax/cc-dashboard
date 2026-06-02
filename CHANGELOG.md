@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-06-02
+
 ### Added
 - Clicking a "Reply ready" notification now jumps to that session's terminal tab
   instead of opening cc-dashboard — it focuses the Ghostty tab whose working
@@ -243,7 +245,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.3
 [0.2.2]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.2
 [0.2.1]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.1
 [0.2.0]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.0
