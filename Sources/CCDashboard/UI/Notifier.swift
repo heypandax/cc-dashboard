@@ -2,9 +2,15 @@ import Foundation
 import UserNotifications
 
 @MainActor
-final class Notifier {
+final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private let center = UNUserNotificationCenter.current()
     private var authorized = false
+
+    override init() {
+        super.init()
+        // 必须设 delegate 才能拦截通知点击 —— 否则走默认行为(激活 cc-dashboard)。
+        center.delegate = self
+    }
 
     func requestAuthorization() async {
         do {
@@ -21,6 +27,7 @@ final class Notifier {
         content.subtitle = approval.toolName
         content.body = approval.summaryLine
         content.sound = .default
+        content.userInfo = ["action": "openDashboard"]   // 审批在 cc-dashboard 里操作
 
         let request = UNNotificationRequest(
             identifier: "approval-\(approval.id)",
@@ -48,6 +55,8 @@ final class Notifier {
         content.subtitle = "\(name) — \(folder)"
         content.body = Self.foldedPrompt(prompt)
         content.sound = .default
+        // 点击跳到该会话对应的 Ghostty tab(按 cwd 匹配 terminal 的 working directory)。
+        content.userInfo = ["action": "focusTab", "cwd": session.cwd]
 
         let request = UNNotificationRequest(
             identifier: "turn-complete-\(session.id)-\(UUID().uuidString.prefix(8))",
@@ -65,5 +74,37 @@ final class Notifier {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if collapsed.count <= maxLen { return collapsed }
         return String(collapsed.prefix(maxLen - 1)) + "…"
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    /// 通知点击分流:turn-complete → 跳对应 Ghostty tab;其余(审批)→ 打开 cc-dashboard。
+    /// 协议方法是 nonisolated,先提取 Sendable 值(action / cwd 字符串)再 hop 到 MainActor。
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let info = response.notification.request.content.userInfo
+        let action = info["action"] as? String
+        let cwd = info["cwd"] as? String
+        Task { @MainActor in
+            switch action {
+            case "focusTab":
+                if let cwd { GhosttyLauncher.focusTab(cwd: cwd) }
+            default:
+                AppState.shared.statusBar.openMainWindow()
+            }
+        }
+        completionHandler()
+    }
+
+    /// app 在前台时也展示横幅 —— 设了 delegate 后不实现这个,前台通知会被系统吞掉。
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound, .list])
     }
 }

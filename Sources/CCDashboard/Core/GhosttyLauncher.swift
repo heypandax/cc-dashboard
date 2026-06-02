@@ -36,6 +36,36 @@ enum GhosttyLauncher {
         run(inDirectory: cwd, command: nil)
     }
 
+    /// 跳到该 cwd 对应的 Ghostty tab(turn-complete 通知点击):按 terminal 的 working directory
+    /// 匹配,focus 过去(focus 会把它的 window 带到前面并切到该 tab)。三档行为正好由脚本自然落出:
+    /// 没装 Ghostty → guard 直接返回,什么都不做;装了但没匹配到 tab → 开头的 activate 已把
+    /// Ghostty 带到前(= "打开 Ghostty");匹配到 → focus。
+    @MainActor
+    static func focusTab(cwd: String) {
+        guard isInstalled else { return }
+        let script = """
+        tell application id "\(bundleID)"
+            activate
+            set target to \(quote(cwd))
+            repeat with w in windows
+                repeat with t in tabs of w
+                    repeat with term in terminals of t
+                        if (working directory of term) is target then
+                            focus term
+                            return
+                        end if
+                    end repeat
+                end repeat
+            end repeat
+        end tell
+        """
+        var err: NSDictionary?
+        NSAppleScript(source: script)?.executeAndReturnError(&err)
+        if let err {
+            Log.lifecycle.error("ghostty focusTab failed: \(String(describing: err), privacy: .public)")
+        }
+    }
+
     @MainActor
     private static func run(inDirectory cwd: String, command: String?) -> Outcome {
         guard isInstalled, let script = NSAppleScript(source: appleScript(cwd: cwd, command: command)) else {
