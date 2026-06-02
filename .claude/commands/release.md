@@ -47,6 +47,22 @@ Report to the user:
 - GitHub Release URL (printed in Step 8 output).
 - Upgrade path: `brew upgrade --cask cc-dashboard` or in-app "Check for Updates…" (Sparkle).
 
+## Update notes (knowledge base)
+
+After a successful release, also write a user-facing **Chinese** update note to the
+user's personal knowledge base — optional, path comes from `.env`.
+
+- Read `CC_RELEASE_NOTES_DIR` from the repo-root `.env` (gitignored; see `.env.example`).
+  If unset/empty or the dir doesn't exist, **skip this step silently** — open-source users
+  won't have it configured, and it must never block or fail the release.
+- Append the just-released version to `$CC_RELEASE_NOTES_DIR/更新说明.md`, **newest on top**
+  (insert above the previous version's section; if the file doesn't exist, create it with a
+  one-line intro header). Do not rewrite or reorder existing version sections.
+- Content: turn the just-promoted `[X.Y.Z]` CHANGELOG section into reader-friendly **Chinese**
+  — what the tool can now do / what was fixed, not commit-level detail. One-line theme + bullets.
+- Follow the knowledge base's own conventions: full-width Chinese punctuation, Mermaid for any
+  diagram, and **never auto-commit** that repo (it has its own commit discipline).
+
 ## Hard rules
 
 - **Force-push to main requires explicit per-incident authorization.** `release.sh` never force-pushes; if you ever find yourself about to, stop and ask.
