@@ -81,6 +81,8 @@
 "Scanning…" = "Scanning…";
 "Refresh" = "Refresh";
 "Resume command copied to clipboard — paste it into your terminal." = "Resume command copied to clipboard — paste it into your terminal.";
+"Save" = "Save";
+"Session name" = "Session name";
 "Allow Ghostty automation in System Settings › Privacy › Automation, then retry. Command copied to clipboard." = "Allow Ghostty automation in System Settings › Privacy › Automation, then retry. Command copied to clipboard.";
 
 /* Agent hub */

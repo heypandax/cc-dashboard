@@ -14,6 +14,8 @@ struct ArchivedSession: Identifiable, Sendable {
     let jsonlPath: String
     /// 是否有同 id 的实时活跃会话。扫描阶段恒为 false,由 UI 层用 `Dashboard.sessions` 叠加。
     var isActive: Bool = false
+    /// 用户自定义会话名(SessionNameStore,按 sessionId)。扫描阶段为 nil,由 UI 层 overlay 填。
+    var customName: String?
 
     var displayTitle: String {
         if let t = title, !t.isEmpty { return t }

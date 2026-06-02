@@ -9,6 +9,16 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Added
+- Clicking a "Reply ready" notification now jumps to that session's terminal tab
+  instead of opening cc-dashboard — it focuses the Ghostty tab whose working
+  directory matches the session's cwd (falls back to just activating Ghostty; does
+  nothing if Ghostty isn't installed). Approval notifications still open
+  cc-dashboard, where you act on them.
+- Name a session in the All Sessions browser (right-click → Rename). A named
+  session shows two lines — your name on top, the original title (Claude's slug /
+  first prompt) below. Names persist per session id and are searchable.
+
 ## [0.2.2] — 2026-06-01
 
 ### Added

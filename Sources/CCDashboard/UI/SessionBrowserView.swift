@@ -11,6 +11,7 @@ import SwiftUI
 final class SessionBrowserModel {
     private let scanner: SessionArchiveScanner
     private let aliasStore: AliasStore
+    private let nameStore: SessionNameStore
     private weak var dashboard: Dashboard?
 
     var groups: [RepoGroup] = []
@@ -30,18 +31,20 @@ final class SessionBrowserModel {
     init(
         dashboard: Dashboard?,
         scanner: SessionArchiveScanner = SessionArchiveScanner(),
-        aliasStore: AliasStore = AliasStore()
+        aliasStore: AliasStore = AliasStore(),
+        nameStore: SessionNameStore = SessionNameStore()
     ) {
         self.dashboard = dashboard
         self.scanner = scanner
         self.aliasStore = aliasStore
+        self.nameStore = nameStore
     }
 
     func refresh() async {
         isLoading = true
         let scanner = self.scanner
         let scanned = await Task.detached(priority: .userInitiated) { scanner.scan() }.value
-        groups = overlayActive(scanned)
+        groups = overlay(scanned)
         isLoading = false
     }
 
@@ -66,7 +69,7 @@ final class SessionBrowserModel {
             if hit(repo.displayName) { return repo }
             let wts = repo.worktrees.compactMap { wt -> WorktreeGroup? in
                 if hit(wt.displayName) || hit(wt.branch) || hit(wt.path) { return wt }
-                let sess = wt.sessions.filter { hit($0.displayTitle) || hit($0.cwd) }
+                let sess = wt.sessions.filter { hit($0.displayTitle) || hit($0.customName) || hit($0.cwd) }
                 guard !sess.isEmpty else { return nil }
                 var wt = wt; wt.sessions = sess; return wt
             }
@@ -85,16 +88,25 @@ final class SessionBrowserModel {
     func toggleRepo(_ id: String) { collapsedRepos.formSymmetricDifference([id]) }
     func toggleWorktree(_ id: String) { collapsedWorktrees.formSymmetricDifference([id]) }
 
-    /// 用实时活跃会话(非 done)按 sessionId 叠加 `isActive`。
-    private func overlayActive(_ groups: [RepoGroup]) -> [RepoGroup] {
+    /// 给会话命名(空串 → 清除),立即重算 overlay 反映到 UI(不重新扫盘)。
+    func rename(_ session: ArchivedSession, name: String?) {
+        nameStore.set(id: session.id, name: name)
+        groups = overlay(groups)
+    }
+
+    /// 叠加实时态(isActive)与用户自定义名(customName)到扫描结果。refresh / rename 后重算。
+    private func overlay(_ groups: [RepoGroup]) -> [RepoGroup] {
         let activeIDs = Set((dashboard?.sessions ?? []).filter { $0.status != .done }.map(\.id))
-        guard !activeIDs.isEmpty else { return groups }
+        let names = nameStore.load()
         return groups.map { repo in
             var repo = repo
             repo.worktrees = repo.worktrees.map { wt in
                 var wt = wt
                 wt.sessions = wt.sessions.map { s in
-                    var s = s; s.isActive = activeIDs.contains(s.id); return s
+                    var s = s
+                    s.isActive = activeIDs.contains(s.id)
+                    s.customName = names[s.id]
+                    return s
                 }
                 return wt
             }
@@ -317,10 +329,21 @@ private struct SessionArchiveRow: View {
                 Circle().fill(Color.secondary.opacity(0.3)).frame(width: 6, height: 6)
             }
 
-            Text(session.displayTitle)
-                .font(.system(size: 12))
-                .lineLimit(1)
-                .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 1) {
+                if let name = session.customName, !name.isEmpty {
+                    Text(name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1).truncationMode(.tail)
+                    Text(session.displayTitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.tail)
+                } else {
+                    Text(session.displayTitle)
+                        .font(.system(size: 12))
+                        .lineLimit(1).truncationMode(.tail)
+                }
+            }
 
             Spacer(minLength: 6)
 
@@ -345,6 +368,11 @@ private struct SessionArchiveRow: View {
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .contextMenu {
+            Button("Rename…") {
+                if let name = promptSessionName(current: session.customName) {
+                    model.rename(session, name: name.isEmpty ? nil : name)
+                }
+            }
             Button("Resume") { model.resume(session) }
             Button("Open directory") { model.openDirectory(session) }
             Divider()
@@ -354,4 +382,23 @@ private struct SessionArchiveRow: View {
             }
         }
     }
+}
+
+/// 会话命名输入框(NSAlert,仿 promptCustomTrustMinutes)。返回 trim 后字符串(空串=清除),
+/// nil = 用户取消。
+@MainActor
+func promptSessionName(current: String?) -> String? {
+    let alert = NSAlert()
+    alert.messageText = String(localized: "Name this session")
+    alert.addButton(withTitle: String(localized: "Save"))
+    alert.addButton(withTitle: String(localized: "Cancel"))
+
+    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+    field.stringValue = current ?? ""
+    field.placeholderString = String(localized: "Session name")
+    alert.accessoryView = field
+    alert.window.initialFirstResponder = field
+
+    guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+    return field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
 }
