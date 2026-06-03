@@ -9,6 +9,8 @@ Versioning][semver].
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-06-03
+
 ### Fixed
 - Renaming a session sometimes accepted only ASCII — Chinese/Japanese and other
   input-method text wouldn't compose (switching to another app and back was the
@@ -254,7 +256,8 @@ Initial public release.
 - Sparkle auto-update with EdDSA-signed appcast.
 - Homebrew Cask distribution via `heypandax/cc-dashboard` tap.
 
-[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/heypandax/cc-dashboard/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.4
 [0.2.3]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.3
 [0.2.2]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.2
 [0.2.1]: https://github.com/heypandax/cc-dashboard/releases/tag/v0.2.1
