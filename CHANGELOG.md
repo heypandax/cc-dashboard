@@ -9,6 +9,15 @@ Versioning][semver].
 
 ## [Unreleased]
 
+### Fixed
+- Renaming a session sometimes accepted only ASCII — Chinese/Japanese and other
+  input-method text wouldn't compose (switching to another app and back was the
+  workaround). cc-dashboard is a menu-bar (accessory) app, and on macOS 14+ its
+  programmatic activation didn't reliably make the app frontmost, so the system
+  input method never engaged in the name field. Opening the Dashboard or All
+  Sessions window now forces a genuine activation, so IME input works the first
+  time; the app drops back to accessory mode when it loses focus.
+
 ## [0.2.3] — 2026-06-02
 
 ### Added

@@ -31,6 +31,7 @@ final class StatusBarController {
         setupStatusItem()
         setupPanel()
         trackIconState()
+        observeResignActive()
     }
 
     func checkForUpdates() {
@@ -166,13 +167,40 @@ final class StatusBarController {
         statusItem?.button?.image = MenuBarIconRenderer.image(for: state)
     }
 
+    // MARK: - Activation policy
+
+    // LSUIElement app 的程序化 activate 在 macOS 14+ 协作式激活下常顶不上去:窗口成了 key
+    // window 但 app 没真激活,文本框只能收 ASCII,中文/日文输入法切不进来。临时升到 .regular
+    // 再 activate 才是系统认账的真激活;失去焦点时降回 .accessory,避免 Dock 常驻图标。
+    // 降级安全 —— 用户之后手动点回窗口本身就是一次真激活,IME 照常工作。
+
+    private func activateForInput() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func observeResignActive() {
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: nil
+        ) { _ in
+            // 只在确实升级过(.regular)时才降级,免得每次失焦都白调一次。
+            Task { @MainActor in
+                if NSApp.activationPolicy() != .accessory {
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
+        }
+    }
+
     // MARK: - Main window
 
     func openMainWindow() {
         // 主窗口要顶到前面来,菜单栏弹窗就不该再挡着了 —— pin 状态也照关,
         // 用户点这个按钮就是主动转场到主窗口,不是 hover 顺手。
         hidePanel()
-        NSApp.activate(ignoringOtherApps: true)
+        activateForInput()
         guard let window = NSApp.windows.first(where: MainSceneID.matches) else {
             // applicationDidFinishLaunching 已经装了 close-guard,正常情况下窗口对象
             // 必然在 NSApp.windows 里。走到这分支说明 SwiftUI / macOS 又改了 lifecycle,
@@ -192,7 +220,7 @@ final class StatusBarController {
 
     func openSessionBrowser() {
         hidePanel()
-        NSApp.activate(ignoringOtherApps: true)
+        activateForInput()
 
         let win: NSWindow
         if let existing = sessionBrowserWindow {
